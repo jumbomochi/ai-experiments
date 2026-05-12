@@ -8,4 +8,4 @@ One row per experiment folder under `experiments/`. Keep this in sync — it's t
 
 **Status values:** `planned` · `running` · `done` · `parked` · `abandoned`
 
-**Areas:** `inference` · `finetuning` · `rag` · `agents`
+**Areas:** `inference` · `eval` · `memory` · `finetuning` · `rag` · `agents`

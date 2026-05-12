@@ -7,16 +7,16 @@ experiments/NNNN-<area>-<slug>/
 ```
 
 - `NNNN` — zero-padded sequence number (`0001`, `0002`, …). Just take the next integer; gaps are fine.
-- `<area>` — one of `inference`, `finetuning`, `rag`, `agents`.
+- `<area>` — one of `inference`, `eval`, `memory`, `finetuning`, `rag`, `agents`.
 - `<slug>` — short kebab-case description.
 
 Examples:
 
 ```
-0001-inference-ollama-quant-bench/
-0002-finetuning-qlora-domain-tune/
-0003-rag-chunking-sweep/
-0004-agents-tool-calling-eval/
+0001-inference-dgx-blessed-runtime/
+0002-eval-first-harness-loop/
+0003-memory-pgvector-kernel/
+0004-rag-sea-lion-sea-helm/
 ```
 
 When you create one, add a row to [`../EXPERIMENTS.md`](../EXPERIMENTS.md) and link it from [`../ROADMAP.md`](../ROADMAP.md).

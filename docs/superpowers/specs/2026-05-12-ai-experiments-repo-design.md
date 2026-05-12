@@ -66,4 +66,17 @@ ai-experiments/
 
 ## Out of scope (for now)
 
-CI/CD, pre-commit hooks, a devcontainer, a shared eval framework, a "new experiment" helper script, a LICENSE choice. Revisit as the repo matures.
+CI/CD, pre-commit hooks, a devcontainer, a "new experiment" helper script, a LICENSE choice. Revisit as the repo matures.
+
+---
+
+## Update — 2026-05-12 (after reviewing the deep-research docs)
+
+The two deep-research analyses in `docs/planning/` clarified the actual context:
+
+- **Hardware:** the lab is anchored on an **NVIDIA DGX Spark (GB10, 128 GB unified memory)** with an **M4 Mac mini** as control plane / small-model baseline, occasional cloud burst, and a possible Mac Studio later (not critical path). This replaces the earlier "Mac for dev, GPU box for heavy" framing.
+- **Areas:** `eval` and `memory` are promoted to first-class experiment areas — both research docs treat the evaluation harness and the agent-memory substrate as the spine of the quarter, not sub-cases of `agents`. Canonical area list is now `inference · eval · memory · finetuning · rag · agents`.
+- **Scope:** the quarter is organized around four outcomes — a reproducible local eval lab, a calibrated judge service, a durable memory substrate, and one flagship pilot (a multilingual document analyst). Quantum, music transcription, and LinkedIn automation are explicit backlog. See `ROADMAP.md`.
+- A "shared eval framework" is consequently no longer out of scope — it's the `eval` area's job.
+
+Applied to `README.md`, `EXPERIMENTS.md`, and `experiments/README.md`.

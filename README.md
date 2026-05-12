@@ -20,10 +20,23 @@ Started May 2026 with an initial ~3-month run; intended to keep growing.
 
 ## Experiment areas
 
-- **inference** — running models locally (Ollama, llama.cpp, vLLM, LM Studio, MLX), quantization, throughput/latency, context length.
-- **finetuning** — LoRA/QLoRA and full fine-tunes, dataset prep, before/after evals.
-- **rag** — embeddings, vector stores, chunking, retrieval quality.
-- **agents** — agentic loops, tool/function calling, multi-agent, MCP, behavior evals.
+- **inference** — running models (DGX Spark local runtime via NIM / TensorRT-LLM / vLLM / SGLang; Mac via MLX / mlx-lm / vLLM-Metal), quantization, throughput/latency, context length, standard serving endpoints.
+- **eval** — evaluation harnesses (lm-evaluation-harness, Inspect AI), gold sets, LLM-as-judge (deterministic / pairwise / rubric), judge-of-the-judge bias checks, regression runs, leaderboards.
+- **memory** — agent memory: thread checkpoints, long-term namespaces, artifact stores, retrieval, offline consolidation, memory security, replay.
+- **finetuning** — LoRA / QLoRA and full fine-tunes, dataset prep, before/after evals.
+- **rag** — embeddings, vector stores, chunking, retrieval quality; localization lanes (SEA-LION / SEA-HELM, Japanese llm-jp-eval, OCR/VLM).
+- **agents** — agentic loops, tool/function calling, multi-agent, MCP, pilot applications, behavior evals.
+
+Canonical order — also used in `EXPERIMENTS.md` and experiment folder names: `inference · eval · memory · finetuning · rag · agents`.
+
+## Hardware
+
+- **DGX Spark (GB10, 128 GB unified memory)** — compute anchor: blessed local runtime, fine-tuning, large-model inference.
+- **M4 Mac mini** — control plane, dataset prep, dashboards, small-model baseline (MLX / mlx-lm / vLLM-Metal).
+- **Cloud burst** (GCE A3 · AWS P5 · neoclouds) — high-throughput batch or final fine-tune epochs only; mind egress, pin storage to Singapore regions (`ap-southeast-1` / `asia-southeast1`).
+- **Mac Studio** — TBD, not on the critical path; revisit after Month 2 if the Mac lane is measurably the bottleneck.
+
+Run `uv run python scripts/hardware_report.py` on any of these and paste the output into an experiment's *Setup* section so runs stay comparable.
 
 ## Environment
 
@@ -34,13 +47,7 @@ uv sync                 # core, cross-platform deps
 uv sync --extra dev     # + linting / notebooks
 ```
 
-Heavy or platform-specific dependencies (CUDA `torch`, `vllm`, `bitsandbytes`, `mlx`/`mlx-lm`) are **not** in the root environment — add them per experiment with `uv add <pkg>` while working in that experiment, or in a per-experiment requirements file. This keeps `uv sync` working the same on macOS, a CUDA workstation, and cloud GPUs.
-
-Quick hardware sanity check (handy to paste into an experiment's *Setup* section):
-
-```bash
-uv run python scripts/hardware_report.py
-```
+Heavy or platform-specific deps (CUDA `torch`, `vllm`, `bitsandbytes`, `mlx` / `mlx-lm`, NIM / TensorRT-LLM, …) are **not** in the root environment — add them per experiment with `uv add <pkg>`, or in a per-experiment requirements file. This keeps `uv sync` consistent across the Mac, the DGX Spark (ARM + CUDA), and cloud GPUs.
 
 ## Starting a new experiment
 
