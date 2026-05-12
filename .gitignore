@@ -1,0 +1,47 @@
+# --- Python ---
+__pycache__/
+*.py[cod]
+*.egg-info/
+build/
+dist/
+
+# --- uv / virtualenv ---
+.venv/
+venv/
+
+# --- Environment / secrets ---
+.env
+.env.*
+!.env.example
+
+# --- Jupyter ---
+.ipynb_checkpoints/
+
+# --- Experiment run artifacts (keep code + small summaries like metrics.json) ---
+outputs/
+runs/
+wandb/
+mlruns/
+.cache/
+*.log
+
+# --- Large model / dataset files (keep locally, don't commit) ---
+/models/**
+!/models/.gitkeep
+/datasets/**
+!/datasets/.gitkeep
+*.gguf
+*.safetensors
+*.bin
+*.pt
+*.pth
+*.onnx
+*.npz
+*.arrow
+
+# --- OS / editor ---
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp
