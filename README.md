@@ -8,7 +8,8 @@ Started May 2026 with an initial ~3-month run; intended to keep growing.
 
 | Path | What's in it |
 |------|--------------|
-| `ROADMAP.md` | The current plan — what we're trying, in roughly what order. Living doc. |
+| `ROADMAP.md` | Strategy — phases, goals, acceptance criteria. Living doc. |
+| `PLAN.md` | Tactical execution layer — calendar, sprints, weekly detail, slip rules. Living doc. |
 | `EXPERIMENTS.md` | Index of every experiment with status and a one-line result. |
 | `docs/planning/` | Planning documents — the source material the roadmap is distilled from. |
 | `docs/notes/` | Cross-cutting notes, decisions, reading. |
