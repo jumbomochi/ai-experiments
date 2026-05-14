@@ -111,7 +111,8 @@ End of Sprint 1 targets: inference-contract spec + code committed; Mac-mini eval
 - [ ] **Place the Spark order** — week 1, no later than Mon 2026-05-18 evening.
 - [ ] **Annotation tool** — argilla vs label-studio decided by end of week 2.
 - [ ] **Singapore public holidays / known blocked weeks** in the next 6 months — please add to the table below as you spot them so the calendar can absorb them upfront. Vesak Day, Hari Raya Haji, National Day (Aug 9), Deepavali are the obvious ones for 2026.
-- [ ] **Publication target for long-form writeups** — own blog (Hugo / Astro on GitHub Pages) vs Substack vs Medium vs dev.to. Decided by end of Sprint 1 (need a destination for the first writeup).
+- [x] **Publication pattern decided (2026-05-14):** **Substack canonical + HubSpot (SG Code Campus) excerpt-and-link.** Substack subscribers receive the full article (preserves the newsletter / Notes / recommendations mechanic); HubSpot publishes a ~3-paragraph excerpt + "Read the full deep dive on `<Substack>`" pointing back, with a short bio tying the author to SG Code Campus. The repo `docs/writeups/` stays the markdown source of truth; the Substack URL is recorded in each draft's front-matter once published.
+- [ ] **Substack name & URL** — to be decided this week; reserve before publishing anything. The name needs to be broad enough to outlive the sovereign-AI-eval focus (long-term Substack, not topic-locked).
 - [ ] **Dashboard stack** for Phase 6 — Grafana on Postgres vs custom Next.js. Decided no later than Sprint 4 (we want to start instrumenting toward it earlier).
 - [ ] **Cloud burst provider** — which of GCE A3 / AWS P5 / Runpod / Lambda is the default on-demand target? Decided by Sprint 3 (when first heavy-compute eval is queued).
 

@@ -290,10 +290,12 @@ Stack candidates (decide in Phase 6): Grafana on Postgres (fast, opinionated) vs
 
 Documentation is not optional — it's part of "phase done."
 
+**Publication pattern (decided 2026-05-14):** **Substack canonical + HubSpot (SG Code Campus) excerpt-and-link.** Substack carries the full article (preserving the newsletter / Notes / recommendations mechanic that the technical-builder audience reads); the HubSpot company site carries a short excerpt + link back, with a bio tying the author to SG Code Campus. The repo `docs/writeups/` stays the markdown source of truth.
+
 Each phase produces:
 
-- **One long-form technical writeup** — draft in `docs/writeups/phase-N-<slug>.md`, then published on the user's blog (target TBD: own Hugo/Astro on GitHub Pages, Substack, Medium, or dev.to). Published URL is recorded back in the draft front-matter.
-- **Short-form post bundle** — LinkedIn primary; X / Bluesky / Mastodon as needed. Draft in `docs/social/phase-N-<slug>.md`. Mix of teaser, headline result, and call-to-engage threads.
+- **One long-form technical writeup** — drafted in `docs/writeups/phase-N-<slug>.md`, published canonical on Substack, excerpted on HubSpot with a "read the full deep dive on `<Substack>`" link. Both URLs recorded in the draft's front-matter.
+- **Short-form post bundle** — LinkedIn primary; X / Bluesky / Mastodon (and Substack Notes) as the technical-builder audience warrants. Drafted in `docs/social/phase-N-<slug>.md`. Mix of teaser, headline result, and call-to-engage threads. Each short-form post links to the Substack canonical.
 
 Plus **recurring cadence** layered on top:
 
@@ -326,4 +328,4 @@ Plus **recurring cadence** layered on top:
 - **LangGraph `Store`** adoption: as-is vs wrapped behind our adapter?
 - **Mac mini headroom**: enough as both control plane *and* small-model baseline + dashboard host, or split?
 - **Dashboard stack** (Phase 6): Grafana on Postgres vs a custom Next.js app on the run-store?
-- **Publication target** for long-form writeups: own blog (Hugo/Astro on GitHub Pages?), Substack, Medium, dev.to — pick once the first writeup is drafted.
+- **Substack name & URL** — decided this week. Long-term-durable, not topic-locked to sovereign AI evals. Track in PLAN.md Open Items.

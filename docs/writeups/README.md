@@ -5,9 +5,10 @@ Long-form technical articles, one per phase (and sometimes one per major experim
 **Workflow:**
 
 1. Draft as `phase-N-<slug>.md` in this folder while the phase is in progress. Use the front-matter template below.
-2. Publish to the chosen platform (own blog / Substack / Medium / dev.to — see `ROADMAP.md` open questions).
-3. Record the published URL in the draft's front-matter; keep the draft in the repo as the canonical source.
-4. Documentation completion is part of "phase done" per the Operating Model in `ROADMAP.md`.
+2. Publish **canonical on Substack** (full article — subscribers get it by email, the article enters the Substack network).
+3. Publish an **excerpt + link** on the SG Code Campus HubSpot site (~3 paragraphs + "Read the full deep dive on `<Substack>`" + bio tying to the company).
+4. Record both URLs in the draft's front-matter. The markdown draft in this folder remains the long-term source of truth.
+5. Documentation completion is part of "phase done" per the Operating Model in `ROADMAP.md`.
 
 **Front-matter template:**
 
@@ -15,9 +16,10 @@ Long-form technical articles, one per phase (and sometimes one per major experim
 ---
 phase: 1
 slug: sovereign-inference-substrate
-status: draft        # draft · ready-to-publish · published
-published_url:       # filled in once live
-published_date:      # YYYY-MM-DD when live
+status: draft               # draft · ready-to-publish · published
+substack_url:               # filled in once published
+hubspot_url:                # filled in once cross-posted
+published_date:             # YYYY-MM-DD when canonical goes live
 title: "Building a sovereign LLM inference substrate"
 tags: [sovereignty, llm, dgx-spark, mac-mini, eval]
 ---
