@@ -80,3 +80,14 @@ The two deep-research analyses in `docs/planning/` clarified the actual context:
 - A "shared eval framework" is consequently no longer out of scope — it's the `eval` area's job.
 
 Applied to `README.md`, `EXPERIMENTS.md`, and `experiments/README.md`.
+
+---
+
+## Update — 2026-05-14 (sovereignty + phase-based restructure)
+
+Two further shifts after a deeper discussion of the eval system:
+
+- **Sovereignty replaces "local"** as the design vocabulary. The eval substrate is anywhere we control the runtime and the data flow — Spark, Mac, *and* a measured GCE/EC2/Runpod box, all behind one OpenAI-compatible inference contract. Three tiers: **Tier 1** sovereign (the eval substrate; always-on + on-demand measured), **Tier 2** open-weights-as-service (excluded by default; revisited in a dedicated cost-benchmark phase), **Tier 3** closed-weights APIs (excluded; reserved at most for periodic recalibration on public gold-set subsets). The strategic objective is independence from proprietary state-of-the-art models. **Gold sets are the moat** — private, versioned, lane-organized, never shipped to a third-party API. The **sovereign judge stack** is the subscription-free engine that scores them.
+- **Phase-based restructure** replaces the fixed 3-month timeline. AI-assisted dev cadence is uneven; calendar months are the wrong unit. `ROADMAP.md` is now organized around phases with goals, acceptance criteria, experiments, and a **mandatory documentation milestone** (long-form writeup + short-form post bundle) per phase. Three cross-cutting tracks — **Instrumentation, Dashboards, Communications** — run alongside the phases. A late phase (Phase 8) quantifies sovereign vs Tier 2 cost.
+
+New directories: `docs/writeups/` (long-form drafts), `docs/social/` (short-form drafts). Layout table in `README.md` updated. Hardware section in `README.md` renamed to *Sovereignty & compute* with the tier breakdown.

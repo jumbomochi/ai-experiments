@@ -12,6 +12,8 @@ Started May 2026 with an initial ~3-month run; intended to keep growing.
 | `EXPERIMENTS.md` | Index of every experiment with status and a one-line result. |
 | `docs/planning/` | Planning documents — the source material the roadmap is distilled from. |
 | `docs/notes/` | Cross-cutting notes, decisions, reading. |
+| `docs/writeups/` | Long-form technical articles per phase (drafts → published). |
+| `docs/social/` | Short-form post bundles per phase (LinkedIn · X · Bluesky · Mastodon). |
 | `docs/superpowers/specs/` | Design docs for non-trivial pieces of this repo. |
 | `experiments/` | One folder per experiment — see [`experiments/README.md`](experiments/README.md). |
 | `shared/` | Reusable Python: model loading, eval helpers, plotting, hardware reporting. |
@@ -29,14 +31,23 @@ Started May 2026 with an initial ~3-month run; intended to keep growing.
 
 Canonical order — also used in `EXPERIMENTS.md` and experiment folder names: `inference · eval · memory · finetuning · rag · agents`.
 
-## Hardware
+## Sovereignty & compute
 
-- **DGX Spark (GB10, 128 GB unified memory)** — compute anchor: blessed local runtime, fine-tuning, large-model inference.
+The eval substrate is **sovereign compute** — anywhere we control the runtime and the data flow. Physical location doesn't matter; control does. See `ROADMAP.md` for the full tier breakdown.
+
+**Tier 1 (the eval substrate):**
+
+- **DGX Spark (GB10, 128 GB unified memory)** — compute anchor: blessed sovereign runtime, fine-tuning, large-model inference, sovereign judge service.
 - **M4 Mac mini** — control plane, dataset prep, dashboards, small-model baseline (MLX / mlx-lm / vLLM-Metal).
-- **Cloud burst** (GCE A3 · AWS P5 · neoclouds) — high-throughput batch or final fine-tune epochs only; mind egress, pin storage to Singapore regions (`ap-southeast-1` / `asia-southeast1`).
-- **Mac Studio** — TBD, not on the critical path; revisit after Month 2 if the Mac lane is measurably the bottleneck.
+- **Measured cloud burst** (GCE A3 · AWS P5 · neoclouds: Runpod, Lambda, Vast) — for models that don't fit on the Spark; spot-by-default, declared budget, auto-teardown, pinned to Singapore regions (`ap-southeast-1` / `asia-southeast1`).
 
-Run `uv run python scripts/hardware_report.py` on any of these and paste the output into an experiment's *Setup* section so runs stay comparable.
+**Tier 2** (open-weights-as-service: Together, Fireworks, Groq, Bedrock-Llama) — excluded from the default eval substrate; integrated only in Phase 8 for the sovereign-vs-Tier-2 cost benchmark, on public gold-set subsets only.
+
+**Tier 3** (closed-weights APIs: OpenAI, Anthropic, Gemini) — excluded from the eval substrate.
+
+**Mac Studio** — TBD; not on the critical path.
+
+Run `uv run python scripts/hardware_report.py` on any sovereign target and paste the output into an experiment's *Setup* section so runs stay comparable.
 
 ## Environment
 
