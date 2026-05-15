@@ -112,7 +112,9 @@ End of Sprint 1 targets: inference-contract spec + code committed; Mac-mini eval
 - [ ] **Annotation tool** — argilla vs label-studio decided by end of week 2.
 - [ ] **Singapore public holidays / known blocked weeks** in the next 6 months — please add to the table below as you spot them so the calendar can absorb them upfront. Vesak Day, Hari Raya Haji, National Day (Aug 9), Deepavali are the obvious ones for 2026.
 - [x] **Publication pattern decided (2026-05-14):** **Substack canonical + HubSpot (SG Code Campus) excerpt-and-link.** Substack subscribers receive the full article (preserves the newsletter / Notes / recommendations mechanic); HubSpot publishes a ~3-paragraph excerpt + "Read the full deep dive on `<Substack>`" pointing back, with a short bio tying the author to SG Code Campus. The repo `docs/writeups/` stays the markdown source of truth; the Substack URL is recorded in each draft's front-matter once published.
-- [ ] **Substack name & URL** — to be decided this week; reserve before publishing anything. The name needs to be broad enough to outlive the sovereign-AI-eval focus (long-term Substack, not topic-locked).
+- [x] **Substack name decided (2026-05-15): "Workings"** — from the educator's "show your workings" phrase. Broad, durable, single word, distinctive.
+- [ ] **Reserve `workings.substack.com` this week** before publishing anything. Fallback URL slugs if taken (the *publication name* stays "Workings" regardless): `theworkings`, `workings-notes`, `workings-by-jonathan`, `workingsweekly`. Substack lets you change the URL slug later if you take a custom domain (e.g., `workings.jonathandoh.com`) on the paid tier.
+- [ ] **Substack subtitle + About page** — draft once URL is reserved. Starter options listed in the next section.
 - [ ] **Dashboard stack** for Phase 6 — Grafana on Postgres vs custom Next.js. Decided no later than Sprint 4 (we want to start instrumenting toward it earlier).
 - [ ] **Cloud burst provider** — which of GCE A3 / AWS P5 / Runpod / Lambda is the default on-demand target? Decided by Sprint 3 (when first heavy-compute eval is queued).
 
