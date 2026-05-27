@@ -51,9 +51,15 @@ re-runnable.
 ## Connection strings (stored in `.env`, gitignored)
 
 ```
-DATABASE_URL=postgresql://huiliang@localhost:5432/ai_experiments
-DATABASE_URL_TEST=postgresql://huiliang@localhost:5432/ai_experiments_test
+DATABASE_URL=postgresql://huiliang@/ai_experiments?host=/tmp
+DATABASE_URL_TEST=postgresql://huiliang@/ai_experiments_test?host=/tmp
 ```
+
+The `?host=/tmp` query parameter makes `psycopg` connect via the Unix socket
+at `/tmp/.s.PGSQL.5432` rather than TCP loopback. This matters because the
+trust line we added covers `local` (Unix socket) only; TCP (`host` lines)
+would still require the postgres password. Socket connections are also
+slightly faster.
 
 The `shared/db/connection.py` module reads these via `python-dotenv`.
 
@@ -65,7 +71,8 @@ The `shared/db/connection.py` module reads these via `python-dotenv`.
 ```
 
 Expected: row with `huiliang | ai_experiments | PostgreSQL 17.5 …` and no
-password prompt.
+password prompt. (`psql` defaults to Unix socket on macOS so this works
+out of the box; only TCP-over-loopback would require a password.)
 
 ## pgvector — DEFERRED to Phase 5
 
