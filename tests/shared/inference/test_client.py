@@ -1,7 +1,6 @@
 """InferenceClient happy-path and error-path tests (HTTP layer mocked)."""
 from __future__ import annotations
 
-import json
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -58,3 +57,36 @@ def test_chat_completion_retries_then_succeeds(
                                    temperature=0.0, top_p=1.0, max_tokens=8))
     assert resp.content == "ok"
     assert mock_sleep.call_count == 2
+
+
+@patch("shared.inference.client.requests.post")
+def test_chat_completion_malformed_200_body_is_catastrophic(mock_post: MagicMock) -> None:
+    mock_post.return_value.status_code = 200
+    mock_post.return_value.json.return_value = {"id": "x"}  # no `choices`
+    client = InferenceClient(endpoint="http://x:8000/v1", model="m1", timeout_s=10)
+    with pytest.raises(InferenceError) as ei:
+        client.chat(ChatRequest(messages=[Message(role="user", content="x")],
+                                temperature=0.0, top_p=1.0, max_tokens=8))
+    assert ei.value.error_class is ErrorClass.CATASTROPHIC
+
+
+@patch("shared.inference.client.time.sleep")
+@patch("shared.inference.client.requests.post")
+def test_chat_completion_429_honors_retry_after_header(
+    mock_post: MagicMock, mock_sleep: MagicMock
+) -> None:
+    rate_limited = MagicMock(status_code=429,
+                              json=MagicMock(return_value={"error": {"message": "slow down"}}),
+                              headers={"Retry-After": "7"})
+    ok = MagicMock(status_code=200,
+                   json=MagicMock(return_value={
+                       "choices": [{"message": {"content": "ok"}}],
+                       "usage": {"prompt_tokens": 1, "completion_tokens": 1, "total_tokens": 2},
+                   }))
+    mock_post.side_effect = [rate_limited, ok]
+    client = InferenceClient(endpoint="http://x:8000/v1", model="m1", timeout_s=10)
+    resp = client.chat(ChatRequest(messages=[Message(role="user", content="x")],
+                                   temperature=0.0, top_p=1.0, max_tokens=8))
+    assert resp.content == "ok"
+    # Slept exactly once for the value from the Retry-After header (7s), not the default 10s.
+    mock_sleep.assert_called_once_with(7)

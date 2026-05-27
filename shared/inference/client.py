@@ -106,11 +106,22 @@ class InferenceClient:
                                  resp.status_code, None) from e
         if resp.status_code != 200:
             cls = classify(resp.status_code, body)
+            # Surface `Retry-After` HTTP header so the retry loop can honor it.
+            if resp.status_code == 429:
+                retry_after = resp.headers.get("Retry-After")
+                if retry_after and retry_after.isdigit():
+                    body["retry_after"] = int(retry_after)
             raise InferenceError(
                 f"http {resp.status_code}: {body.get('error', {}).get('message', '')}",
                 cls, resp.status_code, body,
             )
-        choice = body["choices"][0]["message"]["content"]
+        try:
+            choice = body["choices"][0]["message"]["content"]
+        except (KeyError, IndexError, TypeError) as e:
+            raise InferenceError(
+                "malformed 200 body (missing choices/message/content)",
+                ErrorClass.CATASTROPHIC, resp.status_code, body,
+            ) from e
         u = body.get("usage", {}) or {}
         usage = Usage(
             prompt_tokens=int(u.get("prompt_tokens", 0)),
