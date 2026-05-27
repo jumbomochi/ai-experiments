@@ -44,7 +44,6 @@ def _discover() -> list[tuple[str, Path]]:
 
 def apply_all(test: bool = False) -> list[str]:
     """Apply every migration not yet recorded; return the list applied this run."""
-    _ensure_schema_migrations(test=test)
     applied = applied_migrations(test=test)
     new_ids: list[str] = []
     for mid, path in _discover():

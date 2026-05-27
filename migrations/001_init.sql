@@ -1,8 +1,9 @@
 -- 001_init.sql
 -- Initial schema for the eval substrate.
 -- See docs/superpowers/specs/2026-05-14-evaluation-system-design.md §2 (run-storage).
-
-BEGIN;
+--
+-- No BEGIN/COMMIT — the applier (shared/db/migrations.py) owns the transaction
+-- so the DDL and the schema_migrations INSERT commit atomically.
 
 -- Reference: registry of all model manifests (loaded from shared/models/registry/*.yaml).
 CREATE TABLE model_manifest (
@@ -146,5 +147,3 @@ CREATE TABLE judgement (
 );
 CREATE INDEX judgement_result_id_idx ON judgement (result_id);
 CREATE INDEX judgement_result_id_role_idx ON judgement (result_id, judge_role);
-
-COMMIT;
