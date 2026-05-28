@@ -41,7 +41,7 @@ def _normalize(s: str, ops: list[str]) -> str:
 def _try_float(s: str) -> float | None:
     try:
         return float(s.strip())
-    except (ValueError, AttributeError):
+    except ValueError:
         return None
 
 
@@ -58,7 +58,13 @@ def score(response: str, expected: Expected, cfg: DeterministicConfig) -> float:
             target = float(expected.value)
             if abs(pred - target) <= cfg.numeric_tolerance_abs:
                 return 1.0
-            denom = abs(target) if target != 0 else 1.0
+            # When target == 0 the relative-tolerance check is undefined
+            # (denom would have to be 1.0, silently turning rel_tol into
+            # a second, weaker abs check). Skip it — abs_tol is the only
+            # meaningful threshold at zero.
+            if target == 0:
+                return 0.0
+            denom = abs(target)
             return 1.0 if abs(pred - target) / denom <= cfg.numeric_tolerance_rel else 0.0
         # String path
         return 1.0 if _normalize(response, cfg.string_normalize) == \

@@ -41,3 +41,16 @@ def test_set_match_uses_f1(cfg: DeterministicConfig) -> None:
 def test_unsupported_expected_type_raises(cfg: DeterministicConfig) -> None:
     with pytest.raises(ValueError, match="rubric"):
         score(response="x", expected=Expected(type="rubric", value={"rubric_id": "r"}), cfg=cfg)
+
+
+def test_exact_numeric_target_zero(cfg: DeterministicConfig) -> None:
+    """At target==0 the relative-tolerance branch must not fire — only abs_tol counts.
+    The pre-fix `denom=1.0` fallback silently turned rel_tol into a second, weaker
+    abs threshold; the fix returns 0.0 when abs_tol fails on a zero target."""
+    assert score(response="0.0", expected=Expected(type="exact", value=0.0), cfg=cfg) == 1.0
+    assert score(response="0.0005", expected=Expected(type="exact", value=0.0), cfg=cfg) == 0.0
+
+
+def test_set_both_empty_returns_one(cfg: DeterministicConfig) -> None:
+    """Vacuous-match: empty response, empty expected → perfect (1.0)."""
+    assert score(response="", expected=Expected(type="set", value=[]), cfg=cfg) == 1.0

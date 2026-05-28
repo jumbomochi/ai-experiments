@@ -34,4 +34,8 @@ def aggregate(
     den = sum(weights.get(j.judge_role, 0.0) for j in usable)
     if den == 0:
         raise ValueError(f"no positive weights for any judge_role in {[j.judge_role for j in usable]}")
-    return num / den, "rubric_aggregate"
+    # If every contributing judgement agrees on score_kind, propagate it;
+    # otherwise label as a rubric aggregate (the cross-kind catch-all).
+    kinds = {j.score_kind for j in usable}
+    kind_out = kinds.pop() if len(kinds) == 1 else "rubric_aggregate"
+    return num / den, kind_out
