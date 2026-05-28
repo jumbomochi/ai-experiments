@@ -1,8 +1,6 @@
 """Tests for the migration applier."""
 from __future__ import annotations
 
-import psycopg
-
 from shared.db.connection import connect
 from shared.db.migrations import apply_all, applied_migrations
 

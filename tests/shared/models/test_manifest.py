@@ -6,7 +6,7 @@ from pathlib import Path
 
 import pytest
 
-from shared.models.manifest import ModelManifest, load_manifest_yaml
+from shared.models.manifest import load_manifest_yaml
 
 
 def test_load_minimal_manifest(tmp_path: Path) -> None:
