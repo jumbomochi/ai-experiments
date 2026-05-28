@@ -2,10 +2,9 @@
 from __future__ import annotations
 
 import json
+from collections import Counter
 from pathlib import Path
 from typing import Iterable
-
-import yaml
 
 from shared.db.connection import connect
 from shared.models.manifest import ModelManifest, load_manifest_yaml
@@ -57,9 +56,16 @@ def sync_to_postgres(manifests: Iterable[ModelManifest], test: bool = False) -> 
 
 
 def sync_all(test: bool = False) -> int:
-    """Load every YAML under REGISTRY_DIR and sync. Returns count."""
-    paths = discover_yamls()
+    """Load every YAML under REGISTRY_DIR and sync. Returns count.
+
+    Raises ValueError if two YAML files declare the same model id.
+    """
+    paths = discover_yamls(REGISTRY_DIR)
     manifests = [load_manifest_yaml(p) for p in paths]
+    counts = Counter(m.id for m in manifests)
+    dupes = sorted(mid for mid, n in counts.items() if n > 1)
+    if dupes:
+        raise ValueError(f"duplicate model ids across YAML files: {dupes}")
     sync_to_postgres(manifests, test=test)
     return len(manifests)
 

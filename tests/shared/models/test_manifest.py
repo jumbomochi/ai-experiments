@@ -53,3 +53,22 @@ def test_unknown_runtime_rejected(tmp_path: Path) -> None:
     """))
     with pytest.raises(ValueError, match="runtime"):
         load_manifest_yaml(yaml_path)
+
+
+def test_unknown_capability_rejected(tmp_path: Path) -> None:
+    yaml_path = tmp_path / "m.yaml"
+    yaml_path.write_text(textwrap.dedent("""\
+        id: x
+        family: x
+        size: x
+        revision: "x"
+        runtime: ollama
+        runtime_version: x
+        target_host: mac
+        endpoint: x
+        capabilities: [chat, telepathy]
+        context_window: 1
+        default_sampling: {temperature: 0.0, top_p: 1.0, max_tokens: 1}
+    """))
+    with pytest.raises(ValueError, match="capabilities"):
+        load_manifest_yaml(yaml_path)
