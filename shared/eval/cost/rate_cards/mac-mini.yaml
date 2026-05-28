@@ -1,0 +1,10 @@
+# Mac mini M4 — sovereign, always-on. Token cost is effectively zero
+# (amortized hardware cost is so small per token it's not worth tracking
+# at micro-cent precision); we track wall-time at a nominal $0.05/hour
+# so cost-vs-cloud comparisons in Phase 8 have a real number to compare.
+
+target_host: mac
+unit: per_mtok
+prompt_usd_per_mtok: 0.0
+completion_usd_per_mtok: 0.0
+wall_usd_per_hour: 0.05
