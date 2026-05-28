@@ -1,0 +1,18 @@
+# Smallest Qwen 2.5 Instruct model, served via Ollama on the Mac mini.
+# Used by experiment 0001-inference-contract-validation to smoke-test the substrate.
+
+id: "qwen2.5:0.5b-instruct"
+family: qwen2.5
+size: 0.5b
+revision: "2024-09-19"       # Qwen 2.5 family release date pinned
+quantization: null            # Ollama's default tag for this model is the q4 build, but we leave the field null since the tag string already carries Ollama's quant choice
+runtime: ollama
+runtime_version: "0.15.1"
+target_host: mac
+endpoint: "http://localhost:11434/v1"
+capabilities: [chat]
+context_window: 32768
+default_sampling:
+  temperature: 0.0
+  top_p: 1.0
+  max_tokens: 256
