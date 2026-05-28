@@ -64,3 +64,38 @@ def test_load_rejects_same_version_different_sha(tmp_path: Path) -> None:
     load_jsonl_to_postgres(p, "v0.1", "abc123", test=True)
     with pytest.raises(ValueError, match="immutability"):
         load_jsonl_to_postgres(p, "v0.1", "def456", test=True)
+
+
+def test_load_raises_on_invalid_json_with_position(tmp_path: Path) -> None:
+    p = tmp_path / "bad.jsonl"
+    p.write_text(
+        json.dumps(SEED[0]) + "\n"
+        "this-is-not-json\n"
+    )
+    with pytest.raises(ValueError, match=rf"{p}:2: invalid JSON"):
+        load_jsonl_to_postgres(p, "v0.1", "abc", test=True)
+
+
+def test_load_raises_on_schema_violation_with_position(tmp_path: Path) -> None:
+    p = tmp_path / "bad-schema.jsonl"
+    # Second record is missing the required `lane` field.
+    bad = dict(SEED[0])
+    bad.pop("lane")
+    p.write_text(
+        json.dumps(SEED[0]) + "\n"
+        + json.dumps(bad) + "\n"
+    )
+    with pytest.raises(ValueError, match=rf"{p}:2: schema validation failed"):
+        load_jsonl_to_postgres(p, "v0.1", "abc", test=True)
+
+
+def test_load_rejects_empty_jsonl(tmp_path: Path) -> None:
+    _reset_test_db()
+    p = tmp_path / "empty.jsonl"
+    p.write_text("")
+    with pytest.raises(ValueError, match="no valid examples"):
+        load_jsonl_to_postgres(p, "v0.1", "abc", test=True)
+    # Critically: confirm no gold_set_version row was inserted.
+    with connect(test=True) as conn, conn.cursor() as cur:
+        cur.execute("SELECT count(*) FROM gold_set_version")
+        assert cur.fetchone() == (0,)

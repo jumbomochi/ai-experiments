@@ -14,6 +14,8 @@ import uuid
 from collections import Counter
 from pathlib import Path
 
+from pydantic import ValidationError
+
 from shared.db.connection import connect
 from shared.goldsets.schema import GoldExample
 
@@ -29,7 +31,10 @@ def load_jsonl_to_postgres(
     git_commit_sha: str,
     test: bool = False,
 ) -> int:
-    """Returns the number of examples loaded (0 if no-op)."""
+    """Returns the number of examples loaded; 0 only on an idempotent no-op
+    (same (version, sha) already loaded). Empty JSONL is a hard error — see
+    the guard below.
+    """
     examples: list[GoldExample] = []
     with jsonl_path.open() as f:
         for line_no, line in enumerate(f, 1):
@@ -40,7 +45,18 @@ def load_jsonl_to_postgres(
                 raw = json.loads(line)
             except json.JSONDecodeError as e:
                 raise ValueError(f"{jsonl_path}:{line_no}: invalid JSON: {e}") from e
-            examples.append(GoldExample.model_validate(raw))
+            try:
+                examples.append(GoldExample.model_validate(raw))
+            except ValidationError as e:
+                raise ValueError(
+                    f"{jsonl_path}:{line_no}: schema validation failed: {e}"
+                ) from e
+
+    if not examples:
+        raise ValueError(
+            f"{jsonl_path}: JSONL contains no valid examples; "
+            f"refusing to load an empty gold set"
+        )
 
     with connect(test=test) as conn, conn.cursor() as cur:
         cur.execute(
