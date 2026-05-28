@@ -1,0 +1,55 @@
+"""Tests for the 6-step preflight."""
+from __future__ import annotations
+
+from dataclasses import dataclass
+
+import pytest
+
+from shared.eval.runner.preflight import PreflightFailure, preflight_or_raise
+
+
+@dataclass(frozen=True)
+class FakeManifest:
+    target_host: str = "mac"
+    endpoint: str = "http://localhost:11434/v1"
+
+
+def test_passes_when_all_steps_ok() -> None:
+    # Each fake returns "ok" → no exception
+    preflight_or_raise(
+        check_postgres=lambda: None,
+        check_manifest=lambda: FakeManifest(),
+        check_trust_gate=lambda: None,
+        check_rate_card=lambda h: None,
+        check_endpoint_ready=lambda url, timeout_s: None,
+    )
+
+
+def test_fails_at_postgres_step() -> None:
+    def boom():
+        raise RuntimeError("connection refused")
+
+    with pytest.raises(PreflightFailure) as ei:
+        preflight_or_raise(
+            check_postgres=boom,
+            check_manifest=lambda: FakeManifest(),
+            check_trust_gate=lambda: None,
+            check_rate_card=lambda h: None,
+            check_endpoint_ready=lambda url, timeout_s: None,
+        )
+    assert ei.value.step == "postgres"
+
+
+def test_fails_at_rate_card_step() -> None:
+    def no_card(host):
+        raise FileNotFoundError(f"no rate card for {host}")
+
+    with pytest.raises(PreflightFailure) as ei:
+        preflight_or_raise(
+            check_postgres=lambda: None,
+            check_manifest=lambda: FakeManifest(),
+            check_trust_gate=lambda: None,
+            check_rate_card=no_card,
+            check_endpoint_ready=lambda url, timeout_s: None,
+        )
+    assert ei.value.step == "rate_card"
