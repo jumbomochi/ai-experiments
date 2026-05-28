@@ -58,7 +58,7 @@ def run_campaign(
         manifest = preflight_or_raise(
             check_postgres=lambda: _check_postgres(test=test),
             check_manifest=lambda: resolve(model_id, test=test),
-            check_trust_gate=lambda: _check_trust_gate(judge_config_version, gold_set_version, test=test),
+            check_trust_gate=lambda: _check_trust_gate(judge_config_version, test=test),
             check_rate_card=lambda host: load_rate_card(host),
             check_endpoint_ready=lambda url, t: None,   # Ollama exposes /v1 immediately; skip in v0.1
         )
@@ -154,9 +154,14 @@ def run_campaign(
             if e.error_class is ErrorClass.CATASTROPHIC:
                 status = "halted_endpoint_error"
                 halt_error = {"cause": str(e), "error_class": e.error_class.value}
-            error_class = "client_fatal" if e.error_class is ErrorClass.CLIENT_FATAL else (
-                "retryable_exhausted" if e.error_class is ErrorClass.RETRYABLE else "catastrophic"
-            )
+            if e.error_class is ErrorClass.CLIENT_FATAL:
+                error_class = "client_fatal"
+            elif e.error_class is ErrorClass.RETRYABLE:
+                error_class = "retryable_exhausted"
+            elif e.error_class is ErrorClass.RATE_LIMIT:
+                error_class = "retryable_exhausted"   # exhausted rate-limit retries = same bucket
+            else:
+                error_class = "catastrophic"
             error_body = {"message": str(e), "body": e.body}
         wall_ms = int((time.time() - call_started) * 1000)
 
@@ -254,12 +259,15 @@ def _check_postgres(test: bool) -> None:
             raise RuntimeError("postgres healthcheck returned non-1")
 
 
-def _check_trust_gate(judge_config_version: str, gold_set_version: str, test: bool) -> None:
-    """Stub for v0.1: deterministic-only routing is always trusted."""
+def _check_trust_gate(judge_config_version: str, test: bool) -> None:
+    """Stub for v0.1: deterministic-only routing is always trusted.
+
+    Sprint 3 will accept (judge_config_version, gold_set_version, ...) and
+    enforce per-task kappas; for v0.1 the lenient bundle short-circuits.
+    """
     bundle = _fetch_bundle(judge_config_version, test=test)
     if bundle["trust"]["enforcement"] == "lenient":
         return
-    # Strict mode would enforce per-task kappas here; Sprint 1 bundle is lenient.
     raise NotImplementedError("strict trust gate arrives in Sprint 3 plan")
 
 

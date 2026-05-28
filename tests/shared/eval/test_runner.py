@@ -86,6 +86,21 @@ def test_happy_path_completes(tmp_path: Path) -> None:
         rows = cur.fetchall()
     assert rows == [(1.0, "binary")]
 
+    # And the run row itself is finalized:
+    with connect(test=True) as conn, conn.cursor() as cur:
+        cur.execute(
+            "SELECT status, cost_actual_usd, n_examples_scored, n_examples_errored, "
+            "       summary_scores "
+            "FROM run WHERE id = %s",
+            (rr.run_id,),
+        )
+        run_row = cur.fetchone()
+    assert run_row[0] == "completed"
+    assert float(run_row[1]) >= 0.0
+    assert run_row[2] == 1
+    assert run_row[3] == 0
+    assert run_row[4] == {"avg_score": 1.0}
+
 
 def test_budget_halt(tmp_path: Path) -> None:
     _bootstrap_fixtures(tmp_path)
@@ -111,3 +126,63 @@ def test_budget_halt(tmp_path: Path) -> None:
         )
 
     assert rr.status == "halted_budget"
+
+
+def test_catastrophic_error_halts_with_status(tmp_path: Path) -> None:
+    """A catastrophic inference error halts the run and writes the partial result."""
+    _bootstrap_fixtures(tmp_path)
+    template_root = tmp_path / "tpl"
+    (template_root / "general").mkdir(parents=True)
+    (template_root / "general" / "multi-choice.j2").write_text("Q: {{ question }} A.")
+
+    from shared.inference.errors import ErrorClass, InferenceError
+
+    catastrophic = InferenceError(
+        "OOM", ErrorClass.CATASTROPHIC, status=500,
+        body={"error": {"message": "CUDA out of memory"}},
+    )
+
+    with patch("shared.inference.client.InferenceClient.chat", side_effect=catastrophic):
+        rr = run_campaign(
+            model_id="qwen2.5:0.5b-instruct",
+            gold_set_version="smoke-v0.0",
+            judge_config_version="v0.1",
+            max_cost_usd=1.00,
+            template_root=template_root,
+            test=True,
+        )
+
+    assert rr.status == "halted_endpoint_error"
+
+
+def test_rate_limit_exhausted_labelled_retryable_exhausted(tmp_path: Path) -> None:
+    """Exhausted RATE_LIMIT retries get labelled retryable_exhausted on the result row,
+    NOT catastrophic. The campaign continues (rate_limit is not a halt trigger)."""
+    _bootstrap_fixtures(tmp_path)
+    template_root = tmp_path / "tpl"
+    (template_root / "general").mkdir(parents=True)
+    (template_root / "general" / "multi-choice.j2").write_text("Q: {{ question }} A.")
+
+    from shared.inference.errors import ErrorClass, InferenceError
+
+    rate_limit_exhausted = InferenceError(
+        "rate-limited", ErrorClass.RATE_LIMIT, status=429,
+        body={"error": {"message": "too many"}},
+    )
+
+    with patch("shared.inference.client.InferenceClient.chat", side_effect=rate_limit_exhausted):
+        rr = run_campaign(
+            model_id="qwen2.5:0.5b-instruct",
+            gold_set_version="smoke-v0.0",
+            judge_config_version="v0.1",
+            max_cost_usd=1.00,
+            template_root=template_root,
+            test=True,
+        )
+
+    # Run completes (1 example, all errored), no halt
+    assert rr.status == "completed"
+    with connect(test=True) as conn, conn.cursor() as cur:
+        cur.execute("SELECT error_class FROM result WHERE run_id = %s", (rr.run_id,))
+        rows = cur.fetchall()
+    assert rows == [("retryable_exhausted",)]

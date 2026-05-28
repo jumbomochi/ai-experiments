@@ -1,8 +1,8 @@
-"""6-step preflight per spec §5."""
+"""5-step preflight per spec §5. Step 6 (writing the initial run row) is the
+caller's responsibility in runner.py."""
 from __future__ import annotations
 
 from collections.abc import Callable
-from dataclasses import dataclass
 from typing import Any
 
 
@@ -13,15 +13,6 @@ class PreflightFailure(RuntimeError):
         self.cause = cause
 
 
-@dataclass(frozen=True)
-class PreflightHooks:
-    check_postgres: Callable[[], None]
-    check_manifest: Callable[[], Any]      # returns the resolved manifest
-    check_trust_gate: Callable[[], None]
-    check_rate_card: Callable[[str], None] # given target_host
-    check_endpoint_ready: Callable[[str, float], None]  # url, timeout_s
-
-
 def preflight_or_raise(
     check_postgres: Callable[[], None],
     check_manifest: Callable[[], Any],
@@ -30,7 +21,7 @@ def preflight_or_raise(
     check_endpoint_ready: Callable[[str, float], None],
     endpoint_timeout_s: float = 60.0,
 ) -> Any:
-    """Run all six steps in order; on failure raise PreflightFailure with step+cause.
+    """Run all five steps in order; on failure raise PreflightFailure with step+cause.
 
     Returns the resolved manifest on success.
     """
