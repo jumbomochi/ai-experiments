@@ -1,0 +1,39 @@
+# Sprint 1 judge bundle: deterministic-only. Specialist + generalist arrive in S3.
+# Calibration map is empty by design — deterministic is always trusted; no κ needed.
+
+version: v0.1
+routing:
+  by_expected_type:
+    exact:  [deterministic]
+    set:    [deterministic]
+    rubric: [specialist]      # routing is defined but unused while no rubric examples exist
+  by_lane_override: {}
+judges:
+  deterministic:
+    config:
+      string_normalize: [lowercase, strip_punct, whitespace_collapse]
+      numeric_tolerance_abs: 1.0e-6
+      numeric_tolerance_rel: 1.0e-3
+  specialist:
+    model_id: TBD              # registered in S3 plan
+    rubric_set: rubrics_v0.1
+  generalist:
+    model_id: TBD
+    protocol: g_eval_v1
+aggregation:
+  rule: weighted_mean
+  tie_break: deterministic
+  weights:
+    deterministic: 1.0
+    specialist: 0.7
+    generalist: 0.3
+calibration:
+  human_calibration_set: null   # not built yet
+  kappa_threshold: 0.80
+  per_task_kappa: {}
+trust:
+  enforcement: lenient          # strict from S3 onward
+rubrics: {}                     # populated when the first rubric lane lands in S3
+notes: |
+  Sprint 1 bootstrap bundle. Deterministic-only routing; no rubrics; lenient trust.
+  Promotes to strict + populated calibration in the Sprint 3 plan.
