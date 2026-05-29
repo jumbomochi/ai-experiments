@@ -4,7 +4,7 @@ One row per experiment folder under `experiments/`. Keep this in sync — it's t
 
 | ID | Area | Title | Status | Started | Result (one line) |
 |------|------------|------------------------------|----------|------------|-------------------|
-| —    | —          | _no experiments yet_         | —        | —          | —                 |
+| 0001 | inference  | inference-contract-validation | done     | 2026-05-27 | substrate validated end-to-end on Mac mini; runner + judge + run-store all green |
 
 **Status values:** `planned` · `running` · `done` · `parked` · `abandoned`
 

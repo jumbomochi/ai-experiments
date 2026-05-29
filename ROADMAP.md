@@ -64,7 +64,7 @@ Three **cross-cutting tracks** run alongside the phases — see the bottom of th
 
 ## Phase 1 — Sovereign inference substrate
 
-**Status:** planned.
+**Status:** in progress (started 2026-05-27). Mac-mini side complete: substrate end-to-end (inference contract + run-storage + gold-set loader + deterministic judge + runner) validated by experiment 0001 on 2026-05-29. Spark + cloud-burst targets land in Sprint 2.
 
 **Goal:** Any sovereign deployment target (Spark, Mac, measured cloud burst) exposes the same OpenAI-compatible endpoint. Every eval run is reproducible from stored state, with a tracked cost budget.
 
