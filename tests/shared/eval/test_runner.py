@@ -186,3 +186,41 @@ def test_rate_limit_exhausted_labelled_retryable_exhausted(tmp_path: Path) -> No
         cur.execute("SELECT error_class FROM result WHERE run_id = %s", (rr.run_id,))
         rows = cur.fetchall()
     assert rows == [("retryable_exhausted",)]
+
+
+def test_uncaught_exception_finalizes_run_as_halted(tmp_path: Path) -> None:
+    """If render_prompt or any other body code raises an uncaught exception,
+    the run row must still be finalized (status=halted_endpoint_error, finished_at
+    not null), not stranded as status='running'. Per spec §5: a definite terminal
+    state, never a ghost run.
+    """
+    _bootstrap_fixtures(tmp_path)
+    template_root = tmp_path / "tpl"
+    (template_root / "general").mkdir(parents=True)
+    (template_root / "general" / "multi-choice.j2").write_text("Q: {{ question }} A.")
+
+    # Patch render_prompt at the import site inside runner.py so it raises.
+    with patch("shared.eval.runner.runner.render_prompt",
+               side_effect=RuntimeError("template renderer exploded")):
+        rr = run_campaign(
+            model_id="qwen2.5:0.5b-instruct",
+            gold_set_version="smoke-v0.0",
+            judge_config_version="v0.1",
+            max_cost_usd=1.00,
+            template_root=template_root,
+            test=True,
+        )
+
+    assert rr.status == "halted_endpoint_error"
+    # The run row exists, has a terminal status, finished_at populated, and
+    # carries the uncaught exception in `error`.
+    with connect(test=True) as conn, conn.cursor() as cur:
+        cur.execute(
+            "SELECT status, finished_at, error FROM run WHERE id = %s",
+            (rr.run_id,),
+        )
+        row = cur.fetchone()
+    assert row[0] == "halted_endpoint_error"
+    assert row[1] is not None
+    assert row[2] is not None
+    assert "template renderer exploded" in row[2]["cause"]

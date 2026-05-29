@@ -66,7 +66,10 @@ def run_campaign(
         # postgres step failed → we can't write a run row; bubble up
         if f.step == "postgres":
             raise
-        # otherwise write a halted_setup row and return
+        # TODO(S3): when the strict trust gate lands, a `trust_gate` failure should
+        # map to status="halted_judge_uncalibrated" per spec §5, not "halted_setup".
+        # In Sprint 1 the lenient bundle short-circuits the gate so this path is
+        # unreachable, but the catch site stays here.
         _write_run_row(
             run_id=run_id, model_id=model_id, model_manifest={},
             gold_set_version=gold_set_version,
@@ -120,14 +123,15 @@ def run_campaign(
     # --- Build client ---
     client = (inference_client_factory or _default_client_factory)(manifest)
 
-    # --- Linear loop ---
+    # --- Linear loop (try/finally so finalize ALWAYS runs, even on uncaught) ---
     cost_accumulated = 0.0
     n_scored = 0
     n_errored = 0
     status = "completed"
     halt_error: dict | None = None
 
-    for ex in examples:
+    try:
+      for ex in examples:
         # Render
         rendered = render_prompt(template_root, ex["prompt_template"], ex["inputs"])
 
@@ -228,8 +232,18 @@ def run_campaign(
             halt_error = {"cause": "max_cost_usd exceeded",
                           "cost_accumulated": cost_accumulated, "max": max_cost_usd}
             break
+    except Exception as e:
+        # Anything uncaught (Jinja UndefinedError, lost DB connection, bad JSONB shape
+        # from a corrupt gold_example row, …) lands here. Treat it like a catastrophic
+        # endpoint error so the run row gets a definite terminal state instead of
+        # being stranded as status='running' with finished_at IS NULL forever.
+        status = "halted_endpoint_error"
+        halt_error = {
+            "cause": f"uncaught exception during loop: {e}",
+            "exc_type": type(e).__name__,
+        }
 
-    # --- Teardown + finalize ---
+    # --- Teardown + finalize (in finally so it ALWAYS runs) ---
     teardown_receipt = teardown_hook.teardown(f"run_finalize_{status}")
     finished_at = time.time()
     _finalize_run_row(
