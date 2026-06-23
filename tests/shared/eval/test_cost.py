@@ -62,3 +62,30 @@ def test_load_rate_card_for_mac_matches_manifest_target_host() -> None:
 def test_load_rate_card_missing_raises_file_not_found() -> None:
     with pytest.raises(FileNotFoundError, match="no rate card"):
         load_rate_card("no-such-target")
+
+
+def test_load_rate_card_for_cloud_burst_l4() -> None:
+    rc = load_rate_card("cloud-burst-l4")
+    assert rc.target_host == "cloud-burst-l4"
+    assert rc.unit == "per_mtok"
+    assert rc.wall_usd_per_hour == pytest.approx(0.70)
+    assert rc.prompt_usd_per_mtok == 0.0
+    assert rc.completion_usd_per_mtok == 0.0
+
+
+def test_load_rate_card_for_cloud_burst_a2() -> None:
+    rc = load_rate_card("cloud-burst-a2")
+    assert rc.target_host == "cloud-burst-a2"
+    assert rc.unit == "per_mtok"
+    assert rc.wall_usd_per_hour == pytest.approx(2.50)
+    assert rc.prompt_usd_per_mtok == 0.0
+    assert rc.completion_usd_per_mtok == 0.0
+
+
+def test_cloud_burst_l4_wall_cost() -> None:
+    rc = load_rate_card("cloud-burst-l4")
+    # 1 hour at $0.70/hr
+    cost = CostAccountant.from_rate_card(rc).cost_per_call(
+        prompt_tokens=None, completion_tokens=None, wall_ms=3_600_000
+    )
+    assert cost == pytest.approx(0.70, rel=1e-6)

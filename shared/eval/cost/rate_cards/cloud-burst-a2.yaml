@@ -1,0 +1,8 @@
+# GCE a2-highgpu-1g (1× A100 40 GB VRAM), preemptible, asia-southeast1.
+# Token costs are zero (self-hosted vLLM); only wall-time is billed.
+# Rate ~$2.50/hr spot as of 2026-06. Revise quarterly.
+target_host: cloud-burst-a2
+unit: per_mtok
+prompt_usd_per_mtok: 0.0
+completion_usd_per_mtok: 0.0
+wall_usd_per_hour: 2.50
