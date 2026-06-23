@@ -1,0 +1,7 @@
+project_id    = "your-gcp-project-id"
+zone          = "asia-southeast1-b"
+instance_type = "g2-standard-8"      # L4 24 GB — upgrade to a2-highgpu-1g for A100
+model_id      = "Qwen/Qwen2.5-7B-Instruct"
+vllm_version  = "v0.4.3"
+hf_token      = ""                    # leave empty if model is not gated
+preemptible   = true
