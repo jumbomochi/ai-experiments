@@ -72,3 +72,66 @@ def test_unknown_capability_rejected(tmp_path: Path) -> None:
     """))
     with pytest.raises(ValueError, match="capabilities"):
         load_manifest_yaml(yaml_path)
+
+
+def test_cloud_burst_l4_target_host_accepted(tmp_path: Path) -> None:
+    yaml_path = tmp_path / "m.yaml"
+    yaml_path.write_text(textwrap.dedent("""\
+        id: qwen2.5-7b-instruct-vllm-l4
+        family: qwen2.5
+        size: 7b
+        revision: "2024-09-19"
+        runtime: vllm
+        runtime_version: "0.4.3"
+        target_host: cloud-burst-l4
+        endpoint: "http://1.2.3.4:8000/v1"
+        capabilities: [chat]
+        context_window: 131072
+        default_sampling:
+            temperature: 0.0
+            top_p: 1.0
+            max_tokens: 256
+    """))
+    m = load_manifest_yaml(yaml_path)
+    assert m.target_host == "cloud-burst-l4"
+
+
+def test_cloud_burst_a2_target_host_accepted(tmp_path: Path) -> None:
+    yaml_path = tmp_path / "m.yaml"
+    yaml_path.write_text(textwrap.dedent("""\
+        id: qwen2.5-14b-instruct-vllm-a2
+        family: qwen2.5
+        size: 14b
+        revision: "2024-09-19"
+        runtime: vllm
+        runtime_version: "0.4.3"
+        target_host: cloud-burst-a2
+        endpoint: "http://1.2.3.4:8000/v1"
+        capabilities: [chat]
+        context_window: 131072
+        default_sampling:
+            temperature: 0.0
+            top_p: 1.0
+            max_tokens: 256
+    """))
+    m = load_manifest_yaml(yaml_path)
+    assert m.target_host == "cloud-burst-a2"
+
+
+def test_unknown_target_host_rejected(tmp_path: Path) -> None:
+    yaml_path = tmp_path / "m.yaml"
+    yaml_path.write_text(textwrap.dedent("""\
+        id: x
+        family: x
+        size: x
+        revision: "x"
+        runtime: ollama
+        runtime_version: x
+        target_host: cloud-burst-z99
+        endpoint: x
+        capabilities: []
+        context_window: 1
+        default_sampling: {temperature: 0.0, top_p: 1.0, max_tokens: 1}
+    """))
+    with pytest.raises(ValueError):
+        load_manifest_yaml(yaml_path)

@@ -30,7 +30,7 @@ class ModelManifest(BaseModel):
     quantization: str | None = None
     runtime: str
     runtime_version: str
-    target_host: Literal["mac", "spark", "cloud-burst-a3", "cloud-burst-p5"]
+    target_host: Literal["mac", "spark", "cloud-burst-l4", "cloud-burst-a2", "cloud-burst-a3", "cloud-burst-p5"]
     endpoint: str
     capabilities: list[str] = Field(default_factory=list)
     context_window: int
