@@ -286,7 +286,7 @@ def _check_trust_gate(judge_config_version: str, test: bool) -> None:
 
 
 def _enforce_privacy_guardrail(manifest: ModelManifest, examples: list[dict]) -> None:
-    tier1_hosts = {"mac", "spark", "cloud-burst-a3", "cloud-burst-p5"}
+    tier1_hosts = {"mac", "spark", "cloud-burst-a3", "cloud-burst-p5", "cloud-burst-l4", "cloud-burst-a2"}
     if manifest.target_host in tier1_hosts:
         return
     for ex in examples:

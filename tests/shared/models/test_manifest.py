@@ -133,5 +133,5 @@ def test_unknown_target_host_rejected(tmp_path: Path) -> None:
         context_window: 1
         default_sampling: {temperature: 0.0, top_p: 1.0, max_tokens: 1}
     """))
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError, match="target_host"):
         load_manifest_yaml(yaml_path)
