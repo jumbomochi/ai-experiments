@@ -21,6 +21,12 @@ variable "model_id" {
   default     = "Qwen/Qwen2.5-7B-Instruct"
 }
 
+variable "model_revision" {
+  description = "HuggingFace model revision to download (branch, tag, or commit hash). Use 'main' for the latest."
+  type        = string
+  default     = "main"
+}
+
 variable "vllm_version" {
   description = "vLLM Docker image tag (pinned for reproducibility)"
   type        = string

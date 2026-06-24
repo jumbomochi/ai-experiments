@@ -4,12 +4,14 @@
 set -euo pipefail
 
 MODEL_ID="${model_id}"
+MODEL_REVISION="${model_revision}"
 BUCKET="${bucket_name}"
 HF_TOKEN="${hf_token}"
 VLLM_VERSION="${vllm_version}"
 LOCAL_MODEL_DIR="/model"
+SENTINEL="gs://$BUCKET/$MODEL_ID/.cache_complete"
 
-echo "[startup] model_id=$MODEL_ID bucket=$BUCKET vllm=$VLLM_VERSION"
+echo "[startup] model_id=$MODEL_ID revision=$MODEL_REVISION bucket=$BUCKET vllm=$VLLM_VERSION"
 
 # Set HuggingFace token if provided (needed for gated models)
 if [ -n "$HF_TOKEN" ]; then
@@ -18,20 +20,24 @@ fi
 
 mkdir -p "$LOCAL_MODEL_DIR"
 
-# Check GCS cache — copy weights locally if present, else pull from HuggingFace
-MODEL_GCS_PATH="gs://$BUCKET/$MODEL_ID"
-if gsutil ls "$MODEL_GCS_PATH/" 2>/dev/null | grep -q .; then
-  echo "[startup] cache hit — copying from $MODEL_GCS_PATH"
-  gsutil -m cp -r "$MODEL_GCS_PATH/*" "$LOCAL_MODEL_DIR/"
+# Check GCS cache via sentinel file — sentinel only written after a complete upload.
+# This avoids treating a partial (preempted) upload as a cache hit.
+if gsutil -q stat "$SENTINEL" 2>/dev/null; then
+  echo "[startup] cache hit — syncing from gs://$BUCKET/$MODEL_ID/"
+  gsutil -m rsync -r "gs://$BUCKET/$MODEL_ID/" "$LOCAL_MODEL_DIR/"
 else
   echo "[startup] cache miss — pulling from HuggingFace (this takes ~10 min for a 7B model)"
-  pip install -q huggingface_hub
-  python3 -c "
-from huggingface_hub import snapshot_download
-snapshot_download('$MODEL_ID', local_dir='$LOCAL_MODEL_DIR')
-"
-  echo "[startup] seeding GCS cache at $MODEL_GCS_PATH"
-  gsutil -m cp -r "$LOCAL_MODEL_DIR/" "$MODEL_GCS_PATH/"
+  pip install -q "huggingface_hub[cli]"
+  # --local-dir-use-symlinks False writes files flat into LOCAL_MODEL_DIR (no snapshots/<hash>/ nesting).
+  # vLLM is invoked with --model /model and expects config.json directly there.
+  huggingface-cli download "$MODEL_ID" \
+    --revision "$MODEL_REVISION" \
+    --local-dir "$LOCAL_MODEL_DIR" \
+    --local-dir-use-symlinks False
+  echo "[startup] seeding GCS cache"
+  gsutil -m rsync -r "$LOCAL_MODEL_DIR/" "gs://$BUCKET/$MODEL_ID/"
+  # Write sentinel only after a successful complete upload
+  echo "complete" | gsutil cp - "$SENTINEL"
 fi
 
 # Start vLLM (Docker is pre-installed on the Deep Learning VM image)
@@ -48,9 +54,17 @@ docker run -d \
   --host 0.0.0.0 \
   --port 8000
 
-# Health-gate: poll until vLLM is ready (appears in serial console output)
+# Health-gate: poll until vLLM is ready, with a 5-minute timeout.
 echo "[startup] waiting for vLLM to become ready..."
-until curl -sf http://localhost:8000/health; do
+MAX_WAIT=300
+WAITED=0
+until curl -sf http://localhost:8000/health >/dev/null 2>&1; do
   sleep 5
+  WAITED=$((WAITED + 5))
+  if [ "$WAITED" -ge "$MAX_WAIT" ]; then
+    echo "[startup] ERROR: vLLM did not become ready after ${MAX_WAIT}s — last container logs:"
+    docker logs vllm-server 2>&1 | tail -30
+    exit 1
+  fi
 done
 echo "[startup] vLLM ready at http://localhost:8000/v1"

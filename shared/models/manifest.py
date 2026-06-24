@@ -53,6 +53,16 @@ class ModelManifest(BaseModel):
             raise ValueError(f"unknown capabilities: {sorted(unknown)}")
         return v
 
+    @field_validator("endpoint")
+    @classmethod
+    def _endpoint_not_placeholder(cls, v: str) -> str:
+        if "PLACEHOLDER" in v.upper():
+            raise ValueError(
+                f"endpoint {v!r} contains 'PLACEHOLDER' — fill in the real IP from "
+                "`cd infra/gcp && terraform output -raw endpoint_url` before running sync_all()"
+            )
+        return v
+
 
 def load_manifest_yaml(path: Path) -> ModelManifest:
     raw = yaml.safe_load(path.read_text())

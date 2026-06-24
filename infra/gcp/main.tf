@@ -7,16 +7,21 @@ terraform {
   }
 }
 
+locals {
+  # Derive region from zone by stripping the trailing zone letter (e.g. "asia-southeast1-b" → "asia-southeast1")
+  region = regex("^(.+)-[a-z]$", var.zone)[0]
+}
+
 provider "google" {
   project = var.project_id
-  region  = "asia-southeast1"
+  region  = local.region
 }
 
 # ── GCS model weight cache ──────────────────────────────────────────────────
 
 resource "google_storage_bucket" "model_cache" {
   name                        = "${var.project_id}-ai-experiments-model-cache"
-  location                    = "ASIA-SOUTHEAST1"
+  location                    = upper(local.region)
   uniform_bucket_level_access = true
 
   lifecycle {
@@ -28,7 +33,7 @@ resource "google_storage_bucket" "model_cache" {
 
 resource "google_compute_address" "vllm_ip" {
   name   = "vllm-static-ip"
-  region = "asia-southeast1"
+  region = local.region
 }
 
 # ── Firewall: allow inference traffic on port 8000 ──────────────────────────
@@ -79,10 +84,11 @@ resource "google_compute_instance" "vllm" {
 
   metadata = {
     startup-script = templatefile("${path.module}/startup.sh.tpl", {
-      model_id     = var.model_id
-      bucket_name  = google_storage_bucket.model_cache.name
-      hf_token     = var.hf_token
-      vllm_version = var.vllm_version
+      model_id       = var.model_id
+      model_revision = var.model_revision
+      bucket_name    = google_storage_bucket.model_cache.name
+      hf_token       = var.hf_token
+      vllm_version   = var.vllm_version
     })
   }
 
