@@ -301,7 +301,7 @@ def _enforce_privacy_guardrail(manifest: ModelManifest, examples: list[dict]) ->
 def _fetch_examples(gold_set_version: str, test: bool) -> list[dict[str, Any]]:
     with connect(test=test) as conn, conn.cursor() as cur:
         cur.execute(
-            "SELECT example_id::text, lane, prompt_template, inputs, expected, "
+            "SELECT example_id, lane, prompt_template, inputs, expected, "
             "       never_to_third_party "
             "FROM gold_example WHERE version = %s ORDER BY example_id",
             (gold_set_version,),

@@ -99,3 +99,14 @@ def test_load_rejects_empty_jsonl(tmp_path: Path) -> None:
     with connect(test=True) as conn, conn.cursor() as cur:
         cur.execute("SELECT count(*) FROM gold_set_version")
         assert cur.fetchone() == (0,)
+
+
+def test_load_stores_readable_example_id(tmp_path: Path) -> None:
+    _reset_test_db()
+    p = tmp_path / "seed.jsonl"
+    _write_seed(p)
+    load_jsonl_to_postgres(p, "v0.1", "abc123", test=True)
+    with connect(test=True) as conn, conn.cursor() as cur:
+        cur.execute("SELECT example_id FROM gold_example")
+        rows = [r[0] for r in cur.fetchall()]
+    assert rows == ["ex_general_seed0001"]

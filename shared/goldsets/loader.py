@@ -10,7 +10,6 @@ arms the immutability trigger on gold_example.
 from __future__ import annotations
 
 import json
-import uuid
 from collections import Counter
 from pathlib import Path
 
@@ -18,11 +17,6 @@ from pydantic import ValidationError
 
 from shared.db.connection import connect
 from shared.goldsets.schema import GoldExample
-
-
-def _example_uuid(example_id: str) -> uuid.UUID:
-    """Map our ex_<lane>_<suffix> id to a deterministic uuid5 for the uuid PK."""
-    return uuid.uuid5(uuid.NAMESPACE_URL, f"goldsets://{example_id}")
 
 
 def load_jsonl_to_postgres(
@@ -94,7 +88,7 @@ def load_jsonl_to_postgres(
                 )
                 """,
                 (
-                    version, _example_uuid(ex.example_id), ex.lane,
+                    version, ex.example_id, ex.lane,
                     ex.source, ex.annotator, ex.annotated_at,
                     ex.prompt_template,
                     json.dumps(ex.inputs),
