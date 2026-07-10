@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 """OpenAI-compatible inference client, error handling, and privacy guardrail."""
 
 from shared.inference.client import (
