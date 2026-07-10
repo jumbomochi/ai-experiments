@@ -16,6 +16,7 @@ dependencies = [
     "pydantic>=2.8",
     "PyYAML>=6.0",
     "Jinja2>=3.1",
+    "argilla>=2.8.0",
 ]
 
 [project.optional-dependencies]
@@ -31,6 +32,8 @@ package = false
 # Heavy / platform-specific deps (CUDA `torch`, `vllm`, `bitsandbytes`,
 # `mlx`/`mlx-lm`, ...) are intentionally NOT declared here — add them per
 # experiment so `uv sync` stays portable across macOS, CUDA boxes, and cloud GPUs.
+
+[tool.pytest.ini_options]
 
 [tool.ruff]
 line-length = 100
