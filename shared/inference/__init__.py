@@ -1,4 +1,4 @@
-"""OpenAI-compatible inference client and error handling."""
+"""OpenAI-compatible inference client, error handling, and privacy guardrail."""
 
 from shared.inference.client import (
     ChatRequest,
@@ -8,6 +8,7 @@ from shared.inference.client import (
     Usage,
 )
 from shared.inference.errors import ErrorClass, InferenceError
+from shared.inference.guardrails import enforce_privacy_guardrail
 
 __all__ = [
     "InferenceClient",
@@ -17,4 +18,5 @@ __all__ = [
     "Usage",
     "ErrorClass",
     "InferenceError",
+    "enforce_privacy_guardrail",
 ]

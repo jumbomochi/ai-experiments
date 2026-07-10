@@ -23,6 +23,7 @@ from shared.eval.runner.preflight import PreflightFailure, preflight_or_raise
 from shared.eval.runner.teardown import LocalTeardownHook, TeardownHook
 from shared.goldsets.render import render_prompt
 from shared.goldsets.schema import Expected
+from shared.inference import enforce_privacy_guardrail
 from shared.inference.client import ChatRequest, InferenceClient, Message
 from shared.inference.errors import ErrorClass, InferenceError
 from shared.models.manifest import ModelManifest
@@ -91,7 +92,7 @@ def run_campaign(
     # --- Privacy guardrail (spec §5) ---
     # Mac is sovereign Tier 1 → no examples can violate. Check exists for future-proofing.
     try:
-        _enforce_privacy_guardrail(manifest, examples)
+        enforce_privacy_guardrail(manifest, examples)
     except PreflightFailure as f:
         _write_run_row(
             run_id=run_id, model_id=model_id, model_manifest=manifest.model_dump(),
@@ -283,19 +284,6 @@ def _check_trust_gate(judge_config_version: str, test: bool) -> None:
     if bundle["trust"]["enforcement"] == "lenient":
         return
     raise NotImplementedError("strict trust gate arrives in Sprint 3 plan")
-
-
-def _enforce_privacy_guardrail(manifest: ModelManifest, examples: list[dict]) -> None:
-    tier1_hosts = {"mac", "spark", "cloud-burst-a3", "cloud-burst-p5", "cloud-burst-l4", "cloud-burst-a2"}
-    if manifest.target_host in tier1_hosts:
-        return
-    for ex in examples:
-        if ex.get("never_to_third_party"):
-            raise PreflightFailure(
-                "privacy_violation",
-                RuntimeError(f"example {ex['example_id']} cannot reach non-Tier-1 host "
-                             f"{manifest.target_host}"),
-            )
 
 
 def _fetch_examples(gold_set_version: str, test: bool) -> list[dict[str, Any]]:
