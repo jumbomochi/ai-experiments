@@ -2,8 +2,9 @@
 from __future__ import annotations
 
 import pytest
+from pydantic import ValidationError
 
-from shared.goldsets.schema import GoldExample
+from shared.goldsets.schema import Expected, GoldExample
 
 
 def test_valid_exact_example_parses() -> None:
@@ -54,3 +55,36 @@ def test_id_format_enforced() -> None:
             "provenance_tag": "public",
             "never_to_third_party": False,
         })
+
+
+def test_exact_requires_value():
+    e = Expected(type="exact", value="Paris")
+    assert e.value == "Paris"
+    assert e.rubric is None
+
+
+def test_exact_raises_without_value():
+    with pytest.raises(ValidationError, match="value is required"):
+        Expected(type="exact", value=None)
+
+
+def test_set_requires_value():
+    e = Expected(type="set", value=["Paris", "Lyon"])
+    assert e.value == ["Paris", "Lyon"]
+
+
+def test_rubric_requires_rubric_field():
+    with pytest.raises(ValidationError, match="rubric is required"):
+        Expected(type="rubric")
+
+
+def test_rubric_valid_with_no_reference():
+    e = Expected(type="rubric", rubric="Award 1.0 if correct.")
+    assert e.rubric == "Award 1.0 if correct."
+    assert e.reference is None
+    assert e.value is None
+
+
+def test_rubric_valid_with_reference():
+    e = Expected(type="rubric", rubric="Award 1.0 if correct.", reference="Singapore")
+    assert e.reference == "Singapore"

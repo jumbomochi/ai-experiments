@@ -1,0 +1,58 @@
+# Sprint 2 judge bundle: adds lm_judge for rubric-type examples.
+# endpoint: fill from `cd infra/gcp/judge && terraform output -raw judge_endpoint_url`
+# then re-run: uv run python -c "from shared.eval.judges import register_bundle; register_bundle('v0.2')"
+
+version: v0.2
+routing:
+  by_expected_type:
+    exact:  [deterministic]
+    set:    [deterministic]
+    rubric: [lm_judge]
+  by_lane_override: {}
+judges:
+  deterministic:
+    config:
+      string_normalize: [lowercase, strip_punct, whitespace_collapse]
+      numeric_tolerance_abs: 1.0e-6
+      numeric_tolerance_rel: 1.0e-3
+  lm_judge:
+    model_id: "Qwen/Qwen2.5-72B-Instruct-AWQ"
+    endpoint: "http://PLACEHOLDER:8000/v1"
+    rubric_template: |
+      You are a strict evaluator. Score the response below using the rubric.
+
+      ### Question
+      {{ question }}
+
+      ### Response
+      {{ response }}
+
+      {% if reference %}### Reference answer
+      {{ reference }}
+      {% endif %}
+
+      ### Rubric
+      {{ rubric }}
+
+      Reply in this exact format:
+      SCORE: <number between 0.0 and 1.0>
+      RATIONALE: <one sentence>
+    max_tokens: 128
+    temperature: 0.0
+aggregation:
+  rule: weighted_mean
+  tie_break: deterministic
+  weights:
+    deterministic: 1.0
+    lm_judge: 1.0
+calibration:
+  human_calibration_set: null
+  kappa_threshold: 0.80
+  per_task_kappa: {}
+trust:
+  enforcement: lenient
+rubrics: {}
+notes: |
+  Sprint 2 bundle. Deterministic for exact/set; lm_judge for rubric.
+  Qwen2.5-72B-Instruct-AWQ on cloud-burst-a2 (A100 40 GB).
+  Update lm_judge.endpoint from terraform output before running campaigns.

@@ -5,7 +5,7 @@ import re
 from datetime import date
 from typing import Any, Literal
 
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, field_validator, model_validator
 
 ALLOWED_LANES = {"general", "sea", "japanese", "ocr", "finance"}
 ALLOWED_EXPECTED_TYPES = {"exact", "set", "rubric"}
@@ -14,7 +14,19 @@ EXAMPLE_ID_RE = re.compile(r"^ex_[a-z]+_[a-z0-9]+$")
 
 class Expected(BaseModel):
     type: Literal["exact", "set", "rubric"]
-    value: Any
+    value: Any | None = None
+    rubric: str | None = None
+    reference: str | None = None
+
+    @model_validator(mode="after")
+    def _check_type_fields(self) -> "Expected":
+        if self.type in {"exact", "set"}:
+            if self.value is None:
+                raise ValueError(f"expected.value is required for type={self.type!r}")
+        elif self.type == "rubric":
+            if self.rubric is None:
+                raise ValueError("expected.rubric is required for type='rubric'")
+        return self
 
 
 class GoldExample(BaseModel):
