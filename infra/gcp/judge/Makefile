@@ -10,9 +10,8 @@ judge-down:
 
 judge-health:
 	@echo "Waiting for judge endpoint to become ready..."
-	@until curl -sf "$$(terraform output -raw judge_endpoint_url)/health" >/dev/null; do \
-		sleep 5; \
-	done
+	@BASE="$$(terraform output -raw judge_endpoint_url | sed 's|/v1$$||')"; \
+	until curl -sf "$$BASE/health" >/dev/null; do sleep 5; done
 	@echo "Ready: $$(terraform output -raw judge_endpoint_url)"
 
 judge-ssh:
