@@ -6,7 +6,7 @@ never_to_third_party.
 """
 from __future__ import annotations
 
-from shared.eval.runner.preflight import PreflightFailure
+from shared.eval.errors import PreflightFailure
 from shared.models.manifest import ModelManifest
 
 _TIER1_HOSTS = frozenset({

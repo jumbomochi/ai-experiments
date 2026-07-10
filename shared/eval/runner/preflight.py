@@ -5,12 +5,9 @@ from __future__ import annotations
 from collections.abc import Callable
 from typing import Any
 
+from shared.eval.errors import PreflightFailure
 
-class PreflightFailure(RuntimeError):
-    def __init__(self, step: str, cause: Exception) -> None:
-        super().__init__(f"preflight failed at step={step!r}: {cause}")
-        self.step = step
-        self.cause = cause
+__all__ = ["PreflightFailure", "preflight_or_raise"]
 
 
 def preflight_or_raise(
