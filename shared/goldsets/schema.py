@@ -56,3 +56,33 @@ class GoldExample(BaseModel):
         if v not in ALLOWED_LANES:
             raise ValueError(f"lane {v!r} not in {sorted(ALLOWED_LANES)}")
         return v
+
+
+class SeedExample(BaseModel):
+    """Seed record: inputs only — no expected annotation yet."""
+
+    example_id: str
+    lane: str
+    source: str | None = None
+    annotator: str
+    annotated_at: date
+    prompt_template: str
+    inputs: dict[str, Any]
+    provenance_tag: Literal["private", "public", "public-derived"] = "private"
+    never_to_third_party: bool = True
+    tags: list[str] = Field(default_factory=list)
+    contamination_risk: Literal["none", "low", "high", "known-in-corpus"] = "none"
+
+    @field_validator("example_id")
+    @classmethod
+    def _id_format(cls, v: str) -> str:
+        if not EXAMPLE_ID_RE.match(v):
+            raise ValueError(f"example_id {v!r} must match {EXAMPLE_ID_RE.pattern}")
+        return v
+
+    @field_validator("lane")
+    @classmethod
+    def _lane_known(cls, v: str) -> str:
+        if v not in ALLOWED_LANES:
+            raise ValueError(f"lane {v!r} not in {sorted(ALLOWED_LANES)}")
+        return v

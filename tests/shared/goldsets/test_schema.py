@@ -1,10 +1,12 @@
 """Tests for the gold-set JSONL record schema."""
 from __future__ import annotations
 
+from datetime import date
+
 import pytest
 from pydantic import ValidationError
 
-from shared.goldsets.schema import Expected, GoldExample
+from shared.goldsets.schema import Expected, GoldExample, SeedExample
 
 
 def test_valid_exact_example_parses() -> None:
@@ -88,3 +90,51 @@ def test_rubric_valid_with_no_reference():
 def test_rubric_valid_with_reference():
     e = Expected(type="rubric", rubric="Award 1.0 if correct.", reference="Singapore")
     assert e.reference == "Singapore"
+
+
+def test_seed_example_valid():
+    e = SeedExample(
+        example_id="ex_general_001",
+        lane="general",
+        annotator="huiliang",
+        annotated_at=date(2026, 7, 11),
+        prompt_template="qa",
+        inputs={"question": "What is 2+2?"},
+    )
+    assert e.example_id == "ex_general_001"
+
+
+def test_seed_example_rejects_bad_id():
+    with pytest.raises(ValidationError, match="example_id"):
+        SeedExample(
+            example_id="bad-format",
+            lane="general",
+            annotator="huiliang",
+            annotated_at=date(2026, 7, 11),
+            prompt_template="qa",
+            inputs={"question": "Q"},
+        )
+
+
+def test_seed_example_rejects_unknown_lane():
+    with pytest.raises(ValidationError, match="lane"):
+        SeedExample(
+            example_id="ex_general_001",
+            lane="unknown_lane",
+            annotator="huiliang",
+            annotated_at=date(2026, 7, 11),
+            prompt_template="qa",
+            inputs={"question": "Q"},
+        )
+
+
+def test_seed_example_has_no_expected_field():
+    e = SeedExample(
+        example_id="ex_general_001",
+        lane="general",
+        annotator="huiliang",
+        annotated_at=date(2026, 7, 11),
+        prompt_template="qa",
+        inputs={"question": "Q"},
+    )
+    assert not hasattr(e, "expected")
