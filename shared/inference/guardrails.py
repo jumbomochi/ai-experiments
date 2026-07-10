@@ -27,3 +27,17 @@ def enforce_privacy_guardrail(manifest: ModelManifest, examples: list[dict]) -> 
                     f"{manifest.target_host}"
                 ),
             )
+
+
+def enforce_privacy_guardrail_for_host(host: str, examples: list[dict]) -> None:
+    """Privacy guardrail for a judge or auxiliary call identified by host string."""
+    if host in _TIER1_HOSTS:
+        return
+    for ex in examples:
+        if ex.get("never_to_third_party"):
+            raise PreflightFailure(
+                "privacy_violation",
+                RuntimeError(
+                    f"example {ex['example_id']} cannot reach non-Tier-1 judge host {host!r}"
+                ),
+            )

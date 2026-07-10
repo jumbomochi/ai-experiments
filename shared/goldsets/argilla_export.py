@@ -8,7 +8,7 @@ from pathlib import Path
 import argilla as rg
 from pydantic import ValidationError
 
-from shared.goldsets.schema import GoldExample
+from shared.goldsets.schema import GoldExample, SeedExample
 
 
 def _build_expected_from_answers(answers: dict) -> dict:
@@ -33,15 +33,26 @@ def export_lane(
     out_path: Path,
     argilla_url: str,
     api_key: str,
+    seed_path: Path | None = None,
 ) -> int:
     """Export submitted records to annotated JSONL. Returns count exported.
 
     Exits non-zero (via sys.exit) if any record fails expected-structure validation.
 
-    Note: inputs and prompt_template are not stored in argilla (only rendered_prompt is).
-    Exported rows use stub values for these fields. v0.1 annotated.jsonl files will be
-    manually reviewed before loading. See spec "out of scope" section.
+    When seed_path is provided, inputs, prompt_template, source, and provenance_tag
+    are re-joined from the seed file by example_id. never_to_third_party is always
+    taken from the argilla annotation, not the seed.
     """
+    seed_lookup: dict[str, SeedExample] = {}
+    if seed_path is not None and seed_path.exists():
+        with seed_path.open() as sf:
+            for line in sf:
+                line = line.strip()
+                if not line:
+                    continue
+                s = SeedExample.model_validate(json.loads(line))
+                seed_lookup[s.example_id] = s
+
     client = rg.Argilla(api_url=argilla_url, api_key=api_key)
     dataset = client.datasets(name=f"lane-{lane}")
     if dataset is None:
@@ -71,21 +82,25 @@ def export_lane(
             continue
 
         never_ttp = answers.get("never_to_third_party", "true")
+        seed = seed_lookup.get(record.id)
         row = {
             "example_id": record.id,
             "lane": lane,
             "annotator": "argilla",
             "annotated_at": str(record.updated_at.date()) if record.updated_at else "2026-01-01",
-            "prompt_template": "qa",  # reconstruct from metadata if needed
-            "inputs": {},             # not stored in argilla — must be merged from seed
+            "prompt_template": seed.prompt_template if seed else "qa",
+            "inputs": dict(seed.inputs) if seed else {},
             "expected": expected,
+            "source": seed.source if seed else None,
+            "provenance_tag": seed.provenance_tag if seed else "private",
             "never_to_third_party": never_ttp == "true",
             "tags": answers.get("tags") or [],
             "contamination_risk": answers.get("contamination_risk", "none"),
         }
 
-        # Do NOT call GoldExample.model_validate(row) — inputs/prompt_template are stubs
-        # and would fail validation. Only the expected structure has been validated above.
+        # Do NOT call GoldExample.model_validate(row) — inputs/prompt_template may be stubs
+        # when no seed file is provided and would fail validation. Only the expected structure
+        # has been validated above.
         exported.append(row)
 
     if validation_errors:

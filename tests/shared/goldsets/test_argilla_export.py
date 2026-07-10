@@ -41,26 +41,64 @@ def _mock_argilla(records: list) -> MagicMock:
 def test_export_exact_type(tmp_path):
     from shared.goldsets.argilla_export import export_lane
 
-    record = _make_record("ex_general_001", "exact", "Paris")
-    # Patch out argilla.Argilla constructor to return our mock client
-    with patch("shared.goldsets.argilla_export.rg.Argilla", return_value=_mock_argilla([record])):
-        # GoldExample requires prompt_template and inputs — patch the row construction
-        # by having a record that will produce a valid GoldExample after merging
-        # (for this test, we accept the ValidationError path and check it doesn't crash)
-        pass  # TODO: full round-trip needs seed merge; test the path only
+    # Write a seed JSONL so export_lane can re-join inputs
+    seed_file = tmp_path / "seed.jsonl"
+    seed_file.write_text(json.dumps({
+        "example_id": "ex_general_001",
+        "lane": "general",
+        "annotator": "huiliang",
+        "annotated_at": "2026-07-11",
+        "prompt_template": "qa",
+        "inputs": {"question": "What is the capital of France?"},
+        "provenance_tag": "public",
+        "never_to_third_party": False,
+        "tags": ["smoke"],
+        "contamination_risk": "none",
+    }) + "\n")
+
+    record = _make_record("ex_general_001", "exact", "Paris", status="submitted")
+    out_file = tmp_path / "annotated.jsonl"
+
+    with patch("shared.goldsets.argilla_export.rg.Argilla",
+               return_value=_mock_argilla([record])):
+        n = export_lane("general", out_file, "http://localhost:6900", "key", seed_path=seed_file)
+
+    assert n == 1
+    rows = [json.loads(l) for l in out_file.read_text().strip().splitlines()]
+    assert len(rows) == 1
+    assert rows[0]["expected"] == {"type": "exact", "value": "Paris"}
+    assert rows[0]["inputs"] == {"question": "What is the capital of France?"}
 
 
 def test_export_skips_pending_records(tmp_path):
     from shared.goldsets.argilla_export import export_lane
 
+    seed_file = tmp_path / "seed.jsonl"
+    seed_file.write_text(json.dumps({
+        "example_id": "ex_general_001",
+        "lane": "general",
+        "annotator": "huiliang",
+        "annotated_at": "2026-07-11",
+        "prompt_template": "qa",
+        "inputs": {"question": "Q?"},
+        "provenance_tag": "public",
+        "never_to_third_party": False,
+        "tags": [],
+        "contamination_risk": "none",
+    }) + "\n")
+
     submitted = _make_record("ex_general_001", "exact", "Paris", status="submitted")
     pending = _make_record("ex_general_002", "exact", "Lyon", status="pending")
+    out_file = tmp_path / "annotated.jsonl"
 
     with patch("shared.goldsets.argilla_export.rg.Argilla",
                return_value=_mock_argilla([submitted, pending])):
-        # Only submitted should be processed — pending skipped silently
-        # We can't fully validate without a complete GoldExample; check no crash
-        pass
+        n = export_lane("general", out_file, "http://localhost:6900", "key", seed_path=seed_file)
+
+    assert n == 1  # only the submitted record exported
+    rows = [json.loads(l) for l in out_file.read_text().strip().splitlines()]
+    assert len(rows) == 1
+    assert rows[0]["example_id"] == "ex_general_001"
 
 
 def test_export_rubric_type_builds_correct_expected():

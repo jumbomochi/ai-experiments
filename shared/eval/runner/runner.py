@@ -26,7 +26,7 @@ from shared.eval.runner.preflight import PreflightFailure, preflight_or_raise
 from shared.eval.runner.teardown import LocalTeardownHook, TeardownHook
 from shared.goldsets.render import render_prompt
 from shared.goldsets.schema import Expected
-from shared.inference.guardrails import enforce_privacy_guardrail
+from shared.inference.guardrails import enforce_privacy_guardrail, enforce_privacy_guardrail_for_host
 from shared.inference.client import ChatRequest, InferenceClient, Message
 from shared.inference.errors import ErrorClass, InferenceError
 from shared.models.manifest import ModelManifest
@@ -113,6 +113,25 @@ def run_campaign(
         teardown_hook.teardown(f"halted_setup at {f.step}")
         return RunResult(run_id=run_id, status="halted_setup",
                          cost_actual_usd=0.0, n_examples_scored=0, n_examples_errored=0)
+
+    # --- Privacy guardrail for LM judge ---
+    lm_judge_cfg = bundle.get("judges", {}).get("lm_judge")
+    if lm_judge_cfg:
+        try:
+            enforce_privacy_guardrail_for_host(_JUDGE_HOST, examples)
+        except PreflightFailure as f:
+            _write_run_row(
+                run_id=run_id, model_id=model_id, model_manifest=manifest.model_dump(),
+                gold_set_version=gold_set_version,
+                judge_config_version=judge_config_version, judge_config=bundle,
+                max_cost_usd=max_cost_usd, n_examples_total=len(examples),
+                status="halted_setup",
+                error={"step": f.step, "cause": str(f.cause)},
+                experiment_id=experiment_id, test=test,
+            )
+            teardown_hook.teardown(f"halted_setup at {f.step}")
+            return RunResult(run_id=run_id, status="halted_setup",
+                             cost_actual_usd=0.0, n_examples_scored=0, n_examples_errored=0)
 
     # --- Write initial run row (step 6) ---
     _write_run_row(

@@ -60,9 +60,15 @@ def cmd_push(lane: str, argilla_url: str, api_key: str, seed_file: Path | None) 
 @click.option("--out", required=True, type=click.Path(path_type=Path))
 @click.option("--argilla-url", required=True, type=str)
 @click.option("--api-key", default=_DEFAULT_API_KEY, type=str, show_default=True)
-def cmd_export(lane: str, out: Path, argilla_url: str, api_key: str) -> None:
+@click.option("--seed-file", default=None, type=click.Path(path_type=Path),
+              help="Seed JSONL to merge inputs from (default: gold_sets/<lane>/seed.jsonl if it exists)")
+def cmd_export(lane: str, out: Path, argilla_url: str, api_key: str, seed_file: Path | None) -> None:
     """Export submitted argilla records to annotated JSONL."""
-    n = export_lane(lane=lane, out_path=out, argilla_url=argilla_url, api_key=api_key)
+    if seed_file is None:
+        default_seed = Path(f"gold_sets/{lane}/seed.jsonl")
+        if default_seed.exists():
+            seed_file = default_seed
+    n = export_lane(lane=lane, out_path=out, argilla_url=argilla_url, api_key=api_key, seed_path=seed_file)
     click.echo(f"Exported {n} records to {out}")
 
 

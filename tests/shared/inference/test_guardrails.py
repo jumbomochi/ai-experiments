@@ -6,7 +6,7 @@ from dataclasses import dataclass
 import pytest
 
 from shared.eval.runner.preflight import PreflightFailure
-from shared.inference.guardrails import enforce_privacy_guardrail
+from shared.inference.guardrails import enforce_privacy_guardrail, enforce_privacy_guardrail_for_host
 
 
 @dataclass(frozen=True)
@@ -35,3 +35,22 @@ def test_non_tier1_host_with_public_example_passes() -> None:
     manifest = FakeManifest(target_host="openai-gpt4")
     examples = [{"example_id": "ex_public", "never_to_third_party": False}]
     enforce_privacy_guardrail(manifest, examples)  # must not raise
+
+
+def test_judge_guardrail_non_tier1_host_raises() -> None:
+    examples = [{"example_id": "ex_private", "never_to_third_party": True}]
+    with pytest.raises(PreflightFailure) as ei:
+        enforce_privacy_guardrail_for_host("some-third-party-judge", examples)
+    assert ei.value.step == "privacy_violation"
+    assert "ex_private" in str(ei.value)
+    assert "some-third-party-judge" in str(ei.value)
+
+
+def test_judge_guardrail_tier1_host_allows_private_example() -> None:
+    examples = [{"example_id": "ex_private", "never_to_third_party": True}]
+    enforce_privacy_guardrail_for_host("cloud-burst-a2", examples)  # must not raise
+
+
+def test_judge_guardrail_non_tier1_host_public_example_passes() -> None:
+    examples = [{"example_id": "ex_public", "never_to_third_party": False}]
+    enforce_privacy_guardrail_for_host("some-third-party-judge", examples)  # must not raise
