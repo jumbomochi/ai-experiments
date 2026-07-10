@@ -16,14 +16,15 @@ class PreflightFailure(RuntimeError):
 def preflight_or_raise(
     check_postgres: Callable[[], None],
     check_manifest: Callable[[], Any],
-    check_trust_gate: Callable[[], None],
+    check_trust_gate: Callable[[], dict],
     check_rate_card: Callable[[str], None],
     check_endpoint_ready: Callable[[str, float], None],
     endpoint_timeout_s: float = 60.0,
-) -> Any:
+) -> tuple[Any, dict]:
     """Run all five steps in order; on failure raise PreflightFailure with step+cause.
 
-    Returns the resolved manifest on success.
+    Returns (manifest, bundle) on success, where bundle is the dict returned by
+    check_trust_gate.
     """
     try:
         check_postgres()
@@ -36,7 +37,7 @@ def preflight_or_raise(
         raise PreflightFailure("manifest", e) from e
 
     try:
-        check_trust_gate()
+        bundle = check_trust_gate()
     except Exception as e:
         raise PreflightFailure("trust_gate", e) from e
 
@@ -50,4 +51,4 @@ def preflight_or_raise(
     except Exception as e:
         raise PreflightFailure("endpoint_ready", e) from e
 
-    return manifest
+    return manifest, bundle

@@ -56,7 +56,7 @@ def run_campaign(
 
     # --- Preflight (steps 1–5; step 6 = write `run` row, just below) ---
     try:
-        manifest = preflight_or_raise(
+        manifest, bundle = preflight_or_raise(
             check_postgres=lambda: _check_postgres(test=test),
             check_manifest=lambda: resolve(model_id, test=test),
             check_trust_gate=lambda: _check_trust_gate(judge_config_version, test=test),
@@ -86,7 +86,6 @@ def run_campaign(
 
     # --- Load fixtures ---
     examples = _fetch_examples(gold_set_version, test=test)
-    bundle = _fetch_bundle(judge_config_version, test=test)
     cost_accountant = CostAccountant.for_target(manifest.target_host)
 
     # --- Privacy guardrail (spec §5) ---
@@ -274,7 +273,7 @@ def _check_postgres(test: bool) -> None:
             raise RuntimeError("postgres healthcheck returned non-1")
 
 
-def _check_trust_gate(judge_config_version: str, test: bool) -> None:
+def _check_trust_gate(judge_config_version: str, test: bool) -> dict:
     """Stub for v0.1: deterministic-only routing is always trusted.
 
     Sprint 3 will accept (judge_config_version, gold_set_version, ...) and
@@ -282,7 +281,7 @@ def _check_trust_gate(judge_config_version: str, test: bool) -> None:
     """
     bundle = _fetch_bundle(judge_config_version, test=test)
     if bundle["trust"]["enforcement"] == "lenient":
-        return
+        return bundle
     raise NotImplementedError("strict trust gate arrives in Sprint 3 plan")
 
 

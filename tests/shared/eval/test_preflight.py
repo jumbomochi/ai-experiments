@@ -15,14 +15,16 @@ class FakeManifest:
 
 
 def test_passes_when_all_steps_ok() -> None:
-    # Each fake returns "ok" → no exception
-    preflight_or_raise(
+    fake_bundle = {"trust": {"enforcement": "lenient"}}
+    manifest, bundle = preflight_or_raise(
         check_postgres=lambda: None,
         check_manifest=lambda: FakeManifest(),
-        check_trust_gate=lambda: None,
+        check_trust_gate=lambda: fake_bundle,
         check_rate_card=lambda h: None,
         check_endpoint_ready=lambda url, timeout_s: None,
     )
+    assert isinstance(manifest, FakeManifest)
+    assert bundle == fake_bundle
 
 
 def test_fails_at_postgres_step() -> None:
@@ -33,7 +35,7 @@ def test_fails_at_postgres_step() -> None:
         preflight_or_raise(
             check_postgres=boom,
             check_manifest=lambda: FakeManifest(),
-            check_trust_gate=lambda: None,
+            check_trust_gate=lambda: {},
             check_rate_card=lambda h: None,
             check_endpoint_ready=lambda url, timeout_s: None,
         )
@@ -48,7 +50,7 @@ def test_fails_at_rate_card_step() -> None:
         preflight_or_raise(
             check_postgres=lambda: None,
             check_manifest=lambda: FakeManifest(),
-            check_trust_gate=lambda: None,
+            check_trust_gate=lambda: {},
             check_rate_card=no_card,
             check_endpoint_ready=lambda url, timeout_s: None,
         )
@@ -63,7 +65,7 @@ def test_fails_at_manifest_step() -> None:
         preflight_or_raise(
             check_postgres=lambda: None,
             check_manifest=boom,
-            check_trust_gate=lambda: None,
+            check_trust_gate=lambda: {},
             check_rate_card=lambda h: None,
             check_endpoint_ready=lambda url, timeout_s: None,
         )
@@ -93,7 +95,7 @@ def test_fails_at_endpoint_ready_step() -> None:
         preflight_or_raise(
             check_postgres=lambda: None,
             check_manifest=lambda: FakeManifest(),
-            check_trust_gate=lambda: None,
+            check_trust_gate=lambda: {},
             check_rate_card=lambda h: None,
             check_endpoint_ready=boom,
         )
