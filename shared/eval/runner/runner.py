@@ -23,7 +23,7 @@ from shared.eval.runner.preflight import PreflightFailure, preflight_or_raise
 from shared.eval.runner.teardown import LocalTeardownHook, TeardownHook
 from shared.goldsets.render import render_prompt
 from shared.goldsets.schema import Expected
-from shared.inference import enforce_privacy_guardrail
+from shared.inference.guardrails import enforce_privacy_guardrail
 from shared.inference.client import ChatRequest, InferenceClient, Message
 from shared.inference.errors import ErrorClass, InferenceError
 from shared.models.manifest import ModelManifest
