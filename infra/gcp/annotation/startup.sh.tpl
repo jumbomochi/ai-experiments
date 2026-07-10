@@ -23,6 +23,9 @@ services:
     environment:
       ARGILLA_HOME_PATH: /var/lib/argilla
       ARGILLA_DATABASE_URL: postgresql://argilla:argilla_db_pass@postgres:5432/argilla
+      OWNER_USERNAME: ${argilla_username}
+      OWNER_PASSWORD: ${argilla_password}
+      OWNER_API_KEY: ${argilla_username}.apikey
     depends_on:
       - postgres
     volumes:

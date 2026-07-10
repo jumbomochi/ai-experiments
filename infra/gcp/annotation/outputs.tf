@@ -7,3 +7,8 @@ output "instance_name" {
   value       = google_compute_instance.argilla.name
   description = "GCE instance name (used by SSH)"
 }
+
+output "project_id" {
+  value       = var.project_id
+  description = "GCP project ID (used by make backup to derive GCS bucket name)"
+}
