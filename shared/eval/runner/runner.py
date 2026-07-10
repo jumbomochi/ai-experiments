@@ -5,11 +5,14 @@ One linear pass through the gold-set examples. Per spec §1 + §5.
 from __future__ import annotations
 
 import json
+import re
 import time
 import uuid
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
+
+from jinja2 import Template
 
 from shared.db.connection import connect
 from shared.eval.cost.accountant import CostAccountant, load_rate_card
@@ -28,6 +31,10 @@ from shared.inference.client import ChatRequest, InferenceClient, Message
 from shared.inference.errors import ErrorClass, InferenceError
 from shared.models.manifest import ModelManifest
 from shared.models.registry import resolve
+
+_JUDGE_HOST = "cloud-burst-a2"
+_SCORE_RE = re.compile(r"SCORE:\s*([\d.]+)")
+_RATIONALE_RE = re.compile(r"RATIONALE:\s*(.+)")
 
 
 @dataclass(frozen=True)
@@ -49,6 +56,7 @@ def run_campaign(
     test: bool = False,
     teardown_hook: TeardownHook | None = None,
     inference_client_factory=None,  # for test injection
+    judge_client_factory=None,  # for test injection only
 ) -> RunResult:
     teardown_hook = teardown_hook or LocalTeardownHook()
     run_id = uuid.uuid4()
@@ -191,10 +199,28 @@ def run_campaign(
                     agg_score, agg_kind = aggregate(
                         [judgement_row], bundle["aggregation"]["weights"]
                     )
+                elif expected.type == "rubric":
+                    if "lm_judge" not in bundle.get("judges", {}):
+                        error_class = "judge_parse_failed"
+                        error_body = {"reason": "lm_judge not configured in bundle"}
+                    else:
+                        judgement_row = _lm_judge_score(
+                            rendered, response_text, expected, bundle,
+                            judge_client_factory=judge_client_factory,
+                        )
+                        if judgement_row.parse_error:
+                            error_class = "judge_parse_failed"
+                            error_body = {
+                                "reason": "lm_judge parse failed",
+                                "raw_response": judgement_row.raw_response,
+                            }
+                        else:
+                            agg_score, agg_kind = aggregate(
+                                [judgement_row], bundle["aggregation"]["weights"]
+                            )
                 else:
-                    # No specialist in v0.1 → mark as parse-failed-style error on the result
                     error_class = "judge_parse_failed"
-                    error_body = {"reason": "rubric routing not implemented in Sprint 1"}
+                    error_body = {"reason": f"unknown expected.type={expected.type!r}"}
             except Exception as e:
                 error_class = "judge_parse_failed"
                 error_body = {"reason": str(e)}
@@ -314,6 +340,82 @@ def _default_client_factory(manifest: ModelManifest) -> InferenceClient:
     return InferenceClient(endpoint=manifest.endpoint, model=manifest.id, timeout_s=60.0)
 
 
+def _lm_judge_score(
+    rendered_eval_prompt: str,
+    response_text: str,
+    expected: Expected,
+    bundle: dict,
+    *,
+    judge_client_factory=None,
+) -> Judgement:
+    lm_cfg = bundle["judges"]["lm_judge"]
+    judge_rendered = Template(lm_cfg["rubric_template"]).render(
+        question=rendered_eval_prompt,
+        response=response_text,
+        rubric=expected.rubric,
+        reference=expected.reference,
+    )
+
+    call_started = time.time()
+
+    if judge_client_factory is not None:
+        judge_client = judge_client_factory(lm_cfg)
+    else:
+        judge_client = InferenceClient(
+            endpoint=lm_cfg["endpoint"],
+            model=lm_cfg["model_id"],
+            timeout_s=120.0,
+        )
+
+    try:
+        resp = judge_client.chat(ChatRequest(
+            messages=[Message(role="user", content=judge_rendered)],
+            temperature=lm_cfg.get("temperature", 0.0),
+            top_p=lm_cfg.get("top_p", 1.0),
+            max_tokens=lm_cfg.get("max_tokens", 128),
+        ))
+        raw_response = resp.content
+        usage = {
+            "prompt_tokens": resp.usage.prompt_tokens,
+            "completion_tokens": resp.usage.completion_tokens,
+        }
+    except InferenceError as e:
+        raw_response = f"[judge_error: {e}]"
+        usage = None
+
+    wall_ms = int((time.time() - call_started) * 1000)
+    judge_accountant = CostAccountant.for_target(_JUDGE_HOST)
+    cost_inc = judge_accountant.cost_per_call(
+        usage["prompt_tokens"] if usage else None,
+        usage["completion_tokens"] if usage else None,
+        wall_ms,
+    )
+
+    match = _SCORE_RE.search(raw_response)
+    if match:
+        score = max(0.0, min(1.0, float(match.group(1))))
+        rationale_match = _RATIONALE_RE.search(raw_response)
+        rationale = rationale_match.group(1).strip() if rationale_match else None
+        parse_error = False
+    else:
+        score = None
+        rationale = None
+        parse_error = True
+
+    return Judgement(
+        judge_role="lm_judge",
+        score=score,
+        score_kind="scalar",
+        parse_error=parse_error,
+        rendered_prompt=judge_rendered,
+        raw_response=raw_response,
+        rationale=rationale,
+        usage=usage,
+        cost_increment_usd=cost_inc,
+        wall_ms=wall_ms,
+    )
+
+
 def _write_run_row(
     *, run_id, model_id, model_manifest, gold_set_version, judge_config_version,
     judge_config, max_cost_usd, n_examples_total, status,
@@ -378,15 +480,22 @@ def _write_judgement_row(*, result_id, judgement: Judgement, bundle, test=False)
             """
             INSERT INTO judgement (
                 id, result_id, judge_role, judge_manifest,
-                score, score_kind, parse_error
+                rendered_prompt, raw_response, score, score_kind,
+                rationale, parse_error, usage, cost_increment_usd, wall_ms
             ) VALUES (
-                %s, %s, %s, %s::jsonb, %s, %s, %s
+                %s, %s, %s, %s::jsonb,
+                %s, %s, %s, %s,
+                %s, %s, %s::jsonb, %s, %s
             )
             """,
             (
                 uuid.uuid4(), result_id, judgement.judge_role,
                 json.dumps(bundle["judges"].get(judgement.judge_role, {})),
-                judgement.score, judgement.score_kind, judgement.parse_error,
+                judgement.rendered_prompt, judgement.raw_response,
+                judgement.score, judgement.score_kind,
+                judgement.rationale, judgement.parse_error,
+                json.dumps(judgement.usage) if judgement.usage else None,
+                judgement.cost_increment_usd, judgement.wall_ms,
             ),
         )
 

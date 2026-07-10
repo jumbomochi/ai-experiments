@@ -10,6 +10,12 @@ class Judgement:
     score: float | None     # None if parse_error
     score_kind: str         # binary | scalar | rubric_aggregate
     parse_error: bool = False
+    rendered_prompt: str | None = None
+    raw_response: str | None = None
+    rationale: str | None = None
+    usage: dict | None = None
+    cost_increment_usd: float = 0.0
+    wall_ms: int | None = None
 
 
 def aggregate(
