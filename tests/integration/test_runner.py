@@ -5,6 +5,8 @@ import json
 from pathlib import Path
 from unittest.mock import patch
 
+import pytest
+
 from shared.db.connection import connect
 from shared.db.migrations import apply_all
 from shared.eval.judges import register_bundle
@@ -24,6 +26,7 @@ def _bootstrap_fixtures(tmp_path: Path) -> None:
     """Set up: judge_config v0.1, qwen0.5b manifest, smoke seed."""
     _reset_test_db()
     register_bundle("v0.1", test=True)
+    register_bundle("v0.2", test=True)
 
     manifest_yaml = tmp_path / "m.yaml"
     manifest_yaml.write_text(
@@ -59,6 +62,22 @@ def _stub_inference_response(content: str):
         raw={"choices": [{"message": {"content": content}}],
              "usage": {"prompt_tokens": 10, "completion_tokens": 1, "total_tokens": 11}},
     )
+
+
+def _mock_judge_factory_for(score: float, rationale: str = "Test rationale."):
+    """Returns a judge_client_factory that always returns a fixed SCORE."""
+    from unittest.mock import MagicMock
+
+    def factory(cfg):  # noqa: ARG001
+        client = MagicMock()
+        resp = MagicMock()
+        resp.content = f"SCORE: {score}\nRATIONALE: {rationale}"
+        resp.usage.prompt_tokens = 40
+        resp.usage.completion_tokens = 15
+        client.chat.return_value = resp
+        return client
+
+    return factory
 
 
 def test_happy_path_completes(tmp_path: Path) -> None:
@@ -224,3 +243,65 @@ def test_uncaught_exception_finalizes_run_as_halted(tmp_path: Path) -> None:
     assert row[1] is not None
     assert row[2] is not None
     assert "template renderer exploded" in row[2]["cause"]
+
+
+def test_run_campaign_rubric_example(tmp_path: Path) -> None:
+    """Rubric example routes through lm_judge; judgement row has score and raw_response."""
+    _bootstrap_fixtures(tmp_path)
+
+    template_root = tmp_path / "tpl"
+    (template_root / "general").mkdir(parents=True)
+    (template_root / "general" / "qa.j2").write_text("{{ question }}")
+
+    rubric_seed = tmp_path / "rubric_seed.jsonl"
+    with rubric_seed.open("w") as f:
+        f.write(json.dumps({
+            "example_id": "ex_general_rubric01",
+            "lane": "general",
+            "source": "test",
+            "annotator": "test",
+            "annotated_at": "2026-07-05",
+            "prompt_template": "general/qa.j2",
+            "inputs": {"question": "What is the richest country in SEA by GDP per capita?"},
+            "expected": {
+                "type": "rubric",
+                "rubric": "Award 1.0 if the answer correctly identifies Singapore. Award 0.5 if only partially correct. Award 0.0 otherwise.",
+                "reference": "Singapore",
+            },
+            "provenance_tag": "public",
+            "never_to_third_party": False,
+            "tags": [],
+            "contamination_risk": "none",
+        }) + "\n")
+    load_jsonl_to_postgres(rubric_seed, version="smoke-rubric-v0.0", git_commit_sha="t", test=True)
+
+    with patch("shared.inference.client.InferenceClient.chat",
+               return_value=_stub_inference_response("Singapore is the richest country in SEA.")):
+        result = run_campaign(
+            model_id="qwen2.5:0.5b-instruct",
+            gold_set_version="smoke-rubric-v0.0",
+            judge_config_version="v0.2",
+            max_cost_usd=10.0,
+            template_root=template_root,
+            test=True,
+            judge_client_factory=_mock_judge_factory_for(0.8),
+        )
+
+    assert result.status == "completed"
+
+    with connect(test=True) as conn, conn.cursor() as cur:
+        cur.execute(
+            "SELECT j.score, j.raw_response, j.judge_role "
+            "FROM judgement j "
+            "JOIN result r ON r.id = j.result_id "
+            "WHERE r.example_id = 'ex_general_rubric01' AND r.run_id = %s",
+            (result.run_id,),
+        )
+        row = cur.fetchone()
+
+    assert row is not None, "no judgement row for rubric example"
+    score, raw_response, judge_role = row
+    assert float(score) == pytest.approx(0.8)
+    assert raw_response is not None
+    assert "SCORE: 0.8" in raw_response
+    assert judge_role == "lm_judge"
