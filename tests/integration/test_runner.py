@@ -9,6 +9,7 @@ import pytest
 
 from shared.db.connection import connect
 from shared.db.migrations import apply_all
+from shared.eval.errors import PreflightFailure
 from shared.eval.judges import register_bundle
 from shared.eval.runner import run_campaign
 from shared.goldsets.loader import load_jsonl_to_postgres
@@ -305,3 +306,328 @@ def test_run_campaign_rubric_example(tmp_path: Path) -> None:
     assert raw_response is not None
     assert "SCORE: 0.8" in raw_response
     assert judge_role == "lm_judge"
+
+
+class _RecordingHook:
+    def __init__(self, success: bool = True) -> None:
+        self.success = success
+        self.reasons: list[str] = []
+
+    def teardown(self, reason: str) -> dict[str, object]:
+        self.reasons.append(reason)
+        return {
+            "target": "test",
+            "action": "destroy",
+            "reason": reason,
+            "success": self.success,
+            "returncode": 0 if self.success else 1,
+        }
+
+
+class _RaisingHook:
+    def __init__(self) -> None:
+        self.reasons: list[str] = []
+
+    def teardown(self, reason: str) -> dict[str, object]:
+        self.reasons.append(reason)
+        raise RuntimeError("teardown hook exploded")
+
+
+def _sync_cloud_manifest(tmp_path: Path) -> None:
+    manifest_yaml = tmp_path / "cloud.yaml"
+    manifest_yaml.write_text(
+        'id: "test/cloud-model"\n'
+        'family: test\nsize: 1b\nrevision: "main"\n'
+        'runtime: vllm\nruntime_version: "0.4.3"\n'
+        'target_host: cloud-burst-l4\nendpoint: "http://127.0.0.1:8000/v1"\n'
+        'capabilities: [chat]\ncontext_window: 4096\n'
+        'default_sampling: {temperature: 0.0, top_p: 1.0, max_tokens: 8}\n'
+    )
+    sync_to_postgres([load_manifest_yaml(manifest_yaml)], test=True)
+
+
+def test_success_calls_teardown_once_and_records_receipt(tmp_path: Path) -> None:
+    _bootstrap_fixtures(tmp_path)
+    template_root = tmp_path / "tpl"
+    (template_root / "general").mkdir(parents=True)
+    (template_root / "general" / "multi-choice.j2").write_text("{{ question }}")
+    hook = _RecordingHook()
+
+    with patch("shared.inference.client.InferenceClient.chat",
+               return_value=_stub_inference_response("B")):
+        rr = run_campaign(
+            "qwen2.5:0.5b-instruct", "smoke-v0.0", "v0.1", 1.0,
+            template_root, test=True, teardown_hook=hook,
+        )
+
+    assert rr.status == "completed"
+    assert hook.reasons == ["run_finalize_completed"]
+    with connect(test=True) as conn, conn.cursor() as cur:
+        cur.execute("SELECT notes FROM run WHERE id=%s", (rr.run_id,))
+        assert '"success": true' in cur.fetchone()[0]
+
+
+def test_budget_halt_calls_teardown_once(tmp_path: Path) -> None:
+    _bootstrap_fixtures(tmp_path)
+    template_root = tmp_path / "tpl"
+    (template_root / "general").mkdir(parents=True)
+    (template_root / "general" / "multi-choice.j2").write_text("{{ question }}")
+    hook = _RecordingHook()
+
+    with patch("shared.inference.client.InferenceClient.chat",
+               return_value=_stub_inference_response("B")):
+        rr = run_campaign(
+            "qwen2.5:0.5b-instruct", "smoke-v0.0", "v0.1", -1e-9,
+            template_root, test=True, teardown_hook=hook,
+        )
+
+    assert rr.status == "halted_budget"
+    assert hook.reasons == ["run_finalize_halted_budget"]
+
+
+def test_setup_failure_calls_teardown_and_finalizes(tmp_path: Path) -> None:
+    _bootstrap_fixtures(tmp_path)
+    hook = _RecordingHook()
+
+    rr = run_campaign(
+        "missing-model", "smoke-v0.0", "v0.1", 1.0, tmp_path,
+        test=True, teardown_hook=hook,
+    )
+
+    assert rr.status == "halted_setup"
+    assert hook.reasons == ["run_finalize_halted_setup"]
+    with connect(test=True) as conn, conn.cursor() as cur:
+        cur.execute("SELECT finished_at FROM run WHERE id=%s", (rr.run_id,))
+        assert cur.fetchone()[0] is not None
+
+
+def test_teardown_failure_changes_terminal_status(tmp_path: Path) -> None:
+    _bootstrap_fixtures(tmp_path)
+    template_root = tmp_path / "tpl"
+    (template_root / "general").mkdir(parents=True)
+    (template_root / "general" / "multi-choice.j2").write_text("{{ question }}")
+    hook = _RecordingHook(success=False)
+
+    with patch("shared.inference.client.InferenceClient.chat",
+               return_value=_stub_inference_response("B")):
+        rr = run_campaign(
+            "qwen2.5:0.5b-instruct", "smoke-v0.0", "v0.1", 1.0,
+            template_root, test=True, teardown_hook=hook,
+        )
+
+    assert rr.status == "halted_teardown_failed"
+    assert hook.reasons == ["run_finalize_completed"]
+    with connect(test=True) as conn, conn.cursor() as cur:
+        cur.execute(
+            "SELECT finished_at, error, notes FROM run WHERE id=%s",
+            (rr.run_id,),
+        )
+        finished_at, error, notes = cur.fetchone()
+    assert finished_at is not None
+    assert error["pre_teardown_status"] == "completed"
+    assert error["teardown_receipt"]["success"] is False
+    assert '"success": false' in notes
+
+
+def test_cloud_manifest_requires_cleanup_ownership(tmp_path: Path) -> None:
+    _bootstrap_fixtures(tmp_path)
+    _sync_cloud_manifest(tmp_path)
+    hook = _RecordingHook()
+
+    with patch("shared.eval.runner.runner.LocalTeardownHook", return_value=hook):
+        rr = run_campaign(
+            "test/cloud-model", "smoke-v0.0", "v0.1", 1.0, tmp_path, test=True,
+        )
+
+    assert rr.status == "halted_setup"
+    assert hook.reasons == ["run_finalize_halted_setup"]
+    with connect(test=True) as conn, conn.cursor() as cur:
+        cur.execute(
+            "SELECT finished_at, error, notes FROM run WHERE id=%s",
+            (rr.run_id,),
+        )
+        finished_at, error, notes = cur.fetchone()
+    assert finished_at is not None
+    assert error["step"] == "teardown"
+    assert '"success": true' in notes
+
+
+def test_postgres_preflight_failure_still_calls_teardown(tmp_path: Path) -> None:
+    hook = _RecordingHook()
+    failure = PreflightFailure("postgres", RuntimeError("db down"))
+
+    with patch("shared.eval.runner.runner.preflight_or_raise", side_effect=failure):
+        with pytest.raises(PreflightFailure, match="postgres"):
+            run_campaign(
+                "model", "version", "v0.1", 1.0, tmp_path,
+                test=True, teardown_hook=hook,
+            )
+
+    assert hook.reasons == ["run_finalize_postgres_failure"]
+
+
+def _assert_setup_failure_finalized(run_id, hook: _RecordingHook) -> None:
+    assert hook.reasons == ["run_finalize_halted_setup"]
+    with connect(test=True) as conn, conn.cursor() as cur:
+        cur.execute("SELECT status, finished_at, notes FROM run WHERE id=%s", (run_id,))
+        status, finished_at, notes = cur.fetchone()
+    assert status == "halted_setup"
+    assert finished_at is not None
+    assert '"success": true' in notes
+
+
+def test_fetch_examples_failure_tears_down_and_finalizes(tmp_path: Path) -> None:
+    _bootstrap_fixtures(tmp_path)
+    hook = _RecordingHook()
+
+    with patch(
+        "shared.eval.runner.runner._fetch_examples",
+        side_effect=RuntimeError("fixture fetch exploded"),
+    ):
+        rr = run_campaign(
+            "qwen2.5:0.5b-instruct", "smoke-v0.0", "v0.1", 1.0, tmp_path,
+            test=True, teardown_hook=hook,
+        )
+
+    assert rr.status == "halted_setup"
+    _assert_setup_failure_finalized(rr.run_id, hook)
+
+
+def test_cost_accountant_failure_tears_down_and_finalizes(tmp_path: Path) -> None:
+    _bootstrap_fixtures(tmp_path)
+    hook = _RecordingHook()
+
+    with patch(
+        "shared.eval.runner.runner.CostAccountant.for_target",
+        side_effect=RuntimeError("rate construction exploded"),
+    ):
+        rr = run_campaign(
+            "qwen2.5:0.5b-instruct", "smoke-v0.0", "v0.1", 1.0, tmp_path,
+            test=True, teardown_hook=hook,
+        )
+
+    assert rr.status == "halted_setup"
+    _assert_setup_failure_finalized(rr.run_id, hook)
+
+
+def test_client_factory_failure_tears_down_and_finalizes(tmp_path: Path) -> None:
+    _bootstrap_fixtures(tmp_path)
+    hook = _RecordingHook()
+
+    def exploding_factory(manifest) -> None:  # noqa: ARG001
+        raise RuntimeError("client construction exploded")
+
+    rr = run_campaign(
+        "qwen2.5:0.5b-instruct", "smoke-v0.0", "v0.1", 1.0, tmp_path,
+        test=True,
+        teardown_hook=hook,
+        inference_client_factory=exploding_factory,
+    )
+
+    assert rr.status == "halted_setup"
+    _assert_setup_failure_finalized(rr.run_id, hook)
+
+
+def test_raising_teardown_hook_records_failure_and_finalizes(tmp_path: Path) -> None:
+    _bootstrap_fixtures(tmp_path)
+    template_root = tmp_path / "tpl"
+    (template_root / "general").mkdir(parents=True)
+    (template_root / "general" / "multi-choice.j2").write_text("{{ question }}")
+    hook = _RaisingHook()
+
+    with patch(
+        "shared.inference.client.InferenceClient.chat",
+        return_value=_stub_inference_response("B"),
+    ):
+        rr = run_campaign(
+            "qwen2.5:0.5b-instruct", "smoke-v0.0", "v0.1", 1.0,
+            template_root, test=True, teardown_hook=hook,
+        )
+
+    assert rr.status == "halted_teardown_failed"
+    assert hook.reasons == ["run_finalize_completed"]
+    with connect(test=True) as conn, conn.cursor() as cur:
+        cur.execute(
+            "SELECT status, finished_at, error, notes FROM run WHERE id=%s",
+            (rr.run_id,),
+        )
+        status, finished_at, error, notes = cur.fetchone()
+    assert status == "halted_teardown_failed"
+    assert finished_at is not None
+    assert error["teardown_receipt"]["success"] is False
+    assert error["teardown_receipt"]["exc_type"] == "RuntimeError"
+    assert '"success": false' in notes
+
+
+def test_raising_teardown_does_not_mask_postgres_preflight_failure(
+    tmp_path: Path,
+) -> None:
+    hook = _RaisingHook()
+    failure = PreflightFailure("postgres", RuntimeError("db down"))
+
+    with patch("shared.eval.runner.runner.preflight_or_raise", side_effect=failure):
+        with pytest.raises(PreflightFailure, match="postgres") as exc_info:
+            run_campaign(
+                "model", "version", "v0.1", 1.0, tmp_path,
+                test=True, teardown_hook=hook,
+            )
+
+    assert exc_info.value is failure
+    assert hook.reasons == ["run_finalize_postgres_failure"]
+
+
+def test_existing_positional_client_factory_argument_remains_compatible(
+    tmp_path: Path,
+) -> None:
+    _bootstrap_fixtures(tmp_path)
+    template_root = tmp_path / "tpl"
+    (template_root / "general").mkdir(parents=True)
+    (template_root / "general" / "multi-choice.j2").write_text("{{ question }}")
+    hook = _RecordingHook()
+    factory_manifests = []
+
+    class StubClient:
+        def chat(self, request):  # noqa: ARG002
+            return _stub_inference_response("B")
+
+    def client_factory(manifest):
+        factory_manifests.append(manifest)
+        return StubClient()
+
+    with patch(
+        "shared.inference.client.InferenceClient.chat",
+        return_value=_stub_inference_response("B"),
+    ):
+        rr = run_campaign(
+            "qwen2.5:0.5b-instruct",
+            "smoke-v0.0",
+            "v0.1",
+            1.0,
+            template_root,
+            None,
+            True,
+            hook,
+            client_factory,
+            None,
+        )
+
+    assert rr.status == "completed"
+    assert len(factory_manifests) == 1
+    assert hook.reasons == ["run_finalize_completed"]
+
+
+def test_initial_run_row_write_failure_still_calls_teardown(tmp_path: Path) -> None:
+    _bootstrap_fixtures(tmp_path)
+    hook = _RecordingHook()
+
+    with patch(
+        "shared.eval.runner.runner._write_run_row",
+        side_effect=RuntimeError("run row write exploded"),
+    ):
+        with pytest.raises(RuntimeError, match="run row write exploded"):
+            run_campaign(
+                "qwen2.5:0.5b-instruct", "smoke-v0.0", "v0.1", 1.0, tmp_path,
+                test=True, teardown_hook=hook,
+            )
+
+    assert hook.reasons == ["run_finalize_write_failure"]

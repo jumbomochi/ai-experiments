@@ -23,7 +23,11 @@ from shared.eval.judges import (
     deterministic_score,
 )
 from shared.eval.runner.preflight import PreflightFailure, preflight_or_raise
-from shared.eval.runner.teardown import LocalTeardownHook, TeardownHook
+from shared.eval.runner.teardown import (
+    LocalTeardownHook,
+    TeardownHook,
+    TerraformTeardownHook,
+)
 from shared.goldsets.render import render_prompt
 from shared.goldsets.schema import Expected
 from shared.inference.guardrails import enforce_privacy_guardrail, enforce_privacy_guardrail_for_host
@@ -57,8 +61,15 @@ def run_campaign(
     teardown_hook: TeardownHook | None = None,
     inference_client_factory=None,  # for test injection
     judge_client_factory=None,  # for test injection only
+    terraform_workspace: Path | None = None,
 ) -> RunResult:
-    teardown_hook = teardown_hook or LocalTeardownHook()
+    explicit_cleanup = teardown_hook is not None or terraform_workspace is not None
+    if teardown_hook is None:
+        teardown_hook = (
+            TerraformTeardownHook(terraform_workspace)
+            if terraform_workspace is not None
+            else LocalTeardownHook()
+        )
     run_id = uuid.uuid4()
     started_at = time.time()
 
@@ -74,45 +85,133 @@ def run_campaign(
     except PreflightFailure as f:
         # postgres step failed → we can't write a run row; bubble up
         if f.step == "postgres":
+            _teardown_with_receipt(teardown_hook, "run_finalize_postgres_failure")
             raise
         # TODO(S3): when the strict trust gate lands, a `trust_gate` failure should
         # map to status="halted_judge_uncalibrated" per spec §5, not "halted_setup".
         # In Sprint 1 the lenient bundle short-circuits the gate so this path is
         # unreachable, but the catch site stays here.
-        _write_run_row(
+        _write_run_row_or_teardown(
+            teardown_hook=teardown_hook,
             run_id=run_id, model_id=model_id, model_manifest={},
             gold_set_version=gold_set_version,
             judge_config_version=judge_config_version, judge_config={},
             max_cost_usd=max_cost_usd, n_examples_total=0,
-            status="halted_setup",
+            status="running",
             error={"step": f.step, "cause": str(f.cause)},
             experiment_id=experiment_id, test=test,
         )
-        teardown_hook.teardown(f"halted_setup at {f.step}")
-        return RunResult(run_id=run_id, status="halted_setup",
-                         cost_actual_usd=0.0, n_examples_scored=0, n_examples_errored=0)
+        return _finish_run(
+            run_id=run_id,
+            status="halted_setup",
+            started_at=started_at,
+            cost_actual_usd=0.0,
+            n_examples_scored=0,
+            n_examples_errored=0,
+            halt_error={"step": f.step, "cause": str(f.cause)},
+            teardown_hook=teardown_hook,
+            test=test,
+        )
+
+    if manifest.target_host.startswith("cloud-burst-") and not explicit_cleanup:
+        failure = PreflightFailure(
+            "teardown",
+            RuntimeError(
+                f"cloud target {manifest.target_host!r} requires teardown_hook "
+                "or terraform_workspace"
+            ),
+        )
+        _write_run_row_or_teardown(
+            teardown_hook=teardown_hook,
+            run_id=run_id,
+            model_id=model_id,
+            model_manifest=manifest.model_dump(),
+            gold_set_version=gold_set_version,
+            judge_config_version=judge_config_version,
+            judge_config=bundle,
+            max_cost_usd=max_cost_usd,
+            n_examples_total=0,
+            status="running",
+            error={"step": failure.step, "cause": str(failure.cause)},
+            experiment_id=experiment_id,
+            test=test,
+        )
+        return _finish_run(
+            run_id=run_id,
+            status="halted_setup",
+            started_at=started_at,
+            cost_actual_usd=0.0,
+            n_examples_scored=0,
+            n_examples_errored=0,
+            halt_error={"step": failure.step, "cause": str(failure.cause)},
+            teardown_hook=teardown_hook,
+            test=test,
+        )
 
     # --- Load fixtures ---
-    examples = _fetch_examples(gold_set_version, test=test)
-    cost_accountant = CostAccountant.for_target(manifest.target_host)
+    examples: list[dict[str, Any]] = []
+    try:
+        examples = _fetch_examples(gold_set_version, test=test)
+        cost_accountant = CostAccountant.for_target(manifest.target_host)
+    except Exception as e:
+        setup_error = {
+            "step": "setup",
+            "cause": f"post-preflight setup failed: {e}",
+            "exc_type": type(e).__name__,
+        }
+        _write_run_row_or_teardown(
+            teardown_hook=teardown_hook,
+            run_id=run_id,
+            model_id=model_id,
+            model_manifest=manifest.model_dump(),
+            gold_set_version=gold_set_version,
+            judge_config_version=judge_config_version,
+            judge_config=bundle,
+            max_cost_usd=max_cost_usd,
+            n_examples_total=len(examples),
+            status="running",
+            error=setup_error,
+            experiment_id=experiment_id,
+            test=test,
+        )
+        return _finish_run(
+            run_id=run_id,
+            status="halted_setup",
+            started_at=started_at,
+            cost_actual_usd=0.0,
+            n_examples_scored=0,
+            n_examples_errored=0,
+            halt_error=setup_error,
+            teardown_hook=teardown_hook,
+            test=test,
+        )
 
     # --- Privacy guardrail (spec §5) ---
     # Mac is sovereign Tier 1 → no examples can violate. Check exists for future-proofing.
     try:
         enforce_privacy_guardrail(manifest, examples)
     except PreflightFailure as f:
-        _write_run_row(
+        _write_run_row_or_teardown(
+            teardown_hook=teardown_hook,
             run_id=run_id, model_id=model_id, model_manifest=manifest.model_dump(),
             gold_set_version=gold_set_version,
             judge_config_version=judge_config_version, judge_config=bundle,
             max_cost_usd=max_cost_usd, n_examples_total=len(examples),
-            status="halted_setup",
+            status="running",
             error={"step": f.step, "cause": str(f.cause)},
             experiment_id=experiment_id, test=test,
         )
-        teardown_hook.teardown(f"halted_setup at {f.step}")
-        return RunResult(run_id=run_id, status="halted_setup",
-                         cost_actual_usd=0.0, n_examples_scored=0, n_examples_errored=0)
+        return _finish_run(
+            run_id=run_id,
+            status="halted_setup",
+            started_at=started_at,
+            cost_actual_usd=0.0,
+            n_examples_scored=0,
+            n_examples_errored=0,
+            halt_error={"step": f.step, "cause": str(f.cause)},
+            teardown_hook=teardown_hook,
+            test=test,
+        )
 
     # --- Privacy guardrail for LM judge ---
     lm_judge_cfg = bundle.get("judges", {}).get("lm_judge")
@@ -120,21 +219,31 @@ def run_campaign(
         try:
             enforce_privacy_guardrail_for_host(_JUDGE_HOST, examples)
         except PreflightFailure as f:
-            _write_run_row(
+            _write_run_row_or_teardown(
+                teardown_hook=teardown_hook,
                 run_id=run_id, model_id=model_id, model_manifest=manifest.model_dump(),
                 gold_set_version=gold_set_version,
                 judge_config_version=judge_config_version, judge_config=bundle,
                 max_cost_usd=max_cost_usd, n_examples_total=len(examples),
-                status="halted_setup",
+                status="running",
                 error={"step": f.step, "cause": str(f.cause)},
                 experiment_id=experiment_id, test=test,
             )
-            teardown_hook.teardown(f"halted_setup at {f.step}")
-            return RunResult(run_id=run_id, status="halted_setup",
-                             cost_actual_usd=0.0, n_examples_scored=0, n_examples_errored=0)
+            return _finish_run(
+                run_id=run_id,
+                status="halted_setup",
+                started_at=started_at,
+                cost_actual_usd=0.0,
+                n_examples_scored=0,
+                n_examples_errored=0,
+                halt_error={"step": f.step, "cause": str(f.cause)},
+                teardown_hook=teardown_hook,
+                test=test,
+            )
 
     # --- Write initial run row (step 6) ---
-    _write_run_row(
+    _write_run_row_or_teardown(
+        teardown_hook=teardown_hook,
         run_id=run_id, model_id=model_id,
         model_manifest=manifest.model_dump(),
         gold_set_version=gold_set_version,
@@ -148,7 +257,24 @@ def run_campaign(
     )
 
     # --- Build client ---
-    client = (inference_client_factory or _default_client_factory)(manifest)
+    try:
+        client = (inference_client_factory or _default_client_factory)(manifest)
+    except Exception as e:
+        return _finish_run(
+            run_id=run_id,
+            status="halted_setup",
+            started_at=started_at,
+            cost_actual_usd=0.0,
+            n_examples_scored=0,
+            n_examples_errored=0,
+            halt_error={
+                "step": "client_factory",
+                "cause": f"client construction failed: {e}",
+                "exc_type": type(e).__name__,
+            },
+            teardown_hook=teardown_hook,
+            test=test,
+        )
 
     # --- Linear loop (try/finally so finalize ALWAYS runs, even on uncaught) ---
     cost_accumulated = 0.0
@@ -288,24 +414,16 @@ def run_campaign(
             "exc_type": type(e).__name__,
         }
 
-    # --- Teardown + finalize (in finally so it ALWAYS runs) ---
-    teardown_receipt = teardown_hook.teardown(f"run_finalize_{status}")
-    finished_at = time.time()
-    _finalize_run_row(
-        run_id=run_id, status=status, finished_at=finished_at,
-        wall_seconds=int(finished_at - started_at),
+    return _finish_run(
+        run_id=run_id,
+        status=status,
+        started_at=started_at,
         cost_actual_usd=cost_accumulated,
-        n_examples_scored=n_scored, n_examples_errored=n_errored,
-        summary_scores=_compute_summary(run_id, test=test),
-        error=halt_error,
-        notes=f"teardown_receipt={json.dumps(teardown_receipt)}",
+        n_examples_scored=n_scored,
+        n_examples_errored=n_errored,
+        halt_error=halt_error,
+        teardown_hook=teardown_hook,
         test=test,
-    )
-
-    return RunResult(
-        run_id=run_id, status=status,
-        cost_actual_usd=cost_accumulated,
-        n_examples_scored=n_scored, n_examples_errored=n_errored,
     )
 
 
@@ -433,6 +551,91 @@ def _lm_judge_score(
         cost_increment_usd=cost_inc,
         wall_ms=wall_ms,
     )
+
+
+def _teardown_with_receipt(
+    teardown_hook: TeardownHook,
+    reason: str,
+) -> dict[str, object]:
+    try:
+        return teardown_hook.teardown(reason)
+    except Exception as e:
+        return {
+            "target": "hook",
+            "action": "teardown",
+            "reason": reason,
+            "success": False,
+            "returncode": None,
+            "exc_type": type(e).__name__,
+            "stderr": str(e),
+        }
+
+
+def _apply_teardown_outcome(
+    status: str,
+    error: dict | None,
+    receipt: dict[str, object],
+) -> tuple[str, dict | None]:
+    if receipt.get("success") is not False:
+        return status, error
+    return (
+        "halted_teardown_failed",
+        {
+            "cause": "compute teardown failed",
+            "pre_teardown_status": status,
+            "pre_teardown_error": error,
+            "teardown_receipt": receipt,
+        },
+    )
+
+
+def _finish_run(
+    *,
+    run_id: uuid.UUID,
+    status: str,
+    started_at: float,
+    cost_actual_usd: float,
+    n_examples_scored: int,
+    n_examples_errored: int,
+    halt_error: dict | None,
+    teardown_hook: TeardownHook,
+    test: bool,
+) -> RunResult:
+    receipt = _teardown_with_receipt(teardown_hook, f"run_finalize_{status}")
+    final_status, final_error = _apply_teardown_outcome(status, halt_error, receipt)
+    finished_at = time.time()
+    _finalize_run_row(
+        run_id=run_id,
+        status=final_status,
+        finished_at=finished_at,
+        wall_seconds=int(finished_at - started_at),
+        cost_actual_usd=cost_actual_usd,
+        n_examples_scored=n_examples_scored,
+        n_examples_errored=n_examples_errored,
+        summary_scores=_compute_summary(run_id, test=test),
+        error=final_error,
+        notes=f"teardown_receipt={json.dumps(receipt)}",
+        test=test,
+    )
+    return RunResult(
+        run_id=run_id,
+        status=final_status,
+        cost_actual_usd=cost_actual_usd,
+        n_examples_scored=n_examples_scored,
+        n_examples_errored=n_examples_errored,
+    )
+
+
+def _write_run_row_or_teardown(
+    *,
+    teardown_hook: TeardownHook,
+    **run_row,
+) -> None:
+    try:
+        _write_run_row(**run_row)
+    except Exception:
+        _teardown_with_receipt(teardown_hook, "run_finalize_write_failure")
+        raise
 
 
 def _write_run_row(
