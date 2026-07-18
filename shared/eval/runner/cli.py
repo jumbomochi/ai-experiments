@@ -18,17 +18,21 @@ from pathlib import Path
 from shared.eval.runner.runner import run_campaign
 
 
-def _cli() -> None:
-    p = argparse.ArgumentParser()
-    p.add_argument("--model", required=True)
-    p.add_argument("--gold-set", required=True, dest="gold_set_version")
-    p.add_argument("--judge-config", required=True, dest="judge_config_version")
-    p.add_argument("--max-cost-usd", type=float, required=True)
-    p.add_argument("--template-root", required=True, type=Path)
-    p.add_argument("--experiment", default=None, dest="experiment_id")
-    p.add_argument("--test", action="store_true")
-    args = p.parse_args()
+def build_parser() -> argparse.ArgumentParser:
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--model", required=True)
+    parser.add_argument("--gold-set", required=True, dest="gold_set_version")
+    parser.add_argument("--judge-config", required=True, dest="judge_config_version")
+    parser.add_argument("--max-cost-usd", type=float, required=True)
+    parser.add_argument("--template-root", required=True, type=Path)
+    parser.add_argument("--experiment", default=None, dest="experiment_id")
+    parser.add_argument("--test", action="store_true")
+    parser.add_argument("--terraform-workspace", type=Path, default=None)
+    return parser
 
+
+def main(argv: list[str] | None = None) -> int:
+    args = build_parser().parse_args(argv)
     rr = run_campaign(
         model_id=args.model,
         gold_set_version=args.gold_set_version,
@@ -37,12 +41,15 @@ def _cli() -> None:
         template_root=args.template_root,
         experiment_id=args.experiment_id,
         test=args.test,
+        terraform_workspace=args.terraform_workspace,
     )
-    print(f"run_id={rr.run_id} status={rr.status} "
-          f"cost=${rr.cost_actual_usd:.6f} "
-          f"scored={rr.n_examples_scored} errored={rr.n_examples_errored}")
-    sys.exit(0 if rr.status == "completed" else 1)
+    print(
+        f"run_id={rr.run_id} status={rr.status} "
+        f"cost=${rr.cost_actual_usd:.6f} "
+        f"scored={rr.n_examples_scored} errored={rr.n_examples_errored}"
+    )
+    return 0 if rr.status == "completed" else 1
 
 
 if __name__ == "__main__":
-    _cli()
+    sys.exit(main())
