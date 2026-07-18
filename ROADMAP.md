@@ -64,7 +64,7 @@ Three **cross-cutting tracks** run alongside the phases — see the bottom of th
 
 ## Phase 1 — Sovereign inference substrate
 
-**Status:** in progress (started 2026-05-27). Mac-mini side complete: substrate end-to-end (inference contract + run-storage + gold-set loader + deterministic judge + runner) validated by experiment 0001 on 2026-05-29. Spark + cloud-burst targets land in Sprint 2.
+**Status:** in progress (started 2026-05-27; rebaselined 2026-07-18). The Mac substrate is implemented and was validated by experiment `0001-inference-contract-validation`. GCP Terraform and model manifests are scaffolded but have not yet produced a preserved live campaign. Replay under the current schema, private-tunnel cloud execution, and automatic teardown are still required.
 
 **Goal:** Any sovereign deployment target (Spark, Mac, measured cloud burst) exposes the same OpenAI-compatible endpoint. Every eval run is reproducible from stored state, with a tracked cost budget.
 
@@ -76,10 +76,11 @@ Three **cross-cutting tracks** run alongside the phases — see the bottom of th
 
 **Experiments:**
 
-- `0001-inference-blessed-sovereign-runtime` — pick + commission NIM or TensorRT-LLM as default on Spark; vLLM or SGLang as challenger via Dynamo.
-- `0002-inference-per-target-containers` — same container image runs on Spark, Mac (via translation as needed), and a measured cloud burst.
-- `0003-eval-run-storage-schema` — Postgres schema for `run = (model_manifest, gold_set_version, judge_config, results, traces, cost, timestamps)`. Replay primitive.
-- `0004-eval-cost-discipline-scaffold` — budget per campaign, runner enforcement, auto-teardown, cost log.
+- `0001-inference-contract-validation` — Mac inference contract, run store, deterministic judge, and runner smoke; complete, pending current-schema rerun evidence.
+- `inference-blessed-sovereign-runtime` — choose and commission the default Spark runtime after the hardware arrives.
+- `inference-private-cloud-smoke` — validate the same contract on a measured GCP L4 target through an SSH tunnel.
+- `eval-run-storage-replay` — reconstruct a randomly selected preserved run from stored state.
+- `eval-cost-discipline-teardown` — prove budget halting and automatic destruction of on-demand compute.
 
 **Documentation milestone:** *Writeup* — "Building a sovereign LLM inference substrate: DGX Spark, M4 Mac, and measured cloud burst behind one endpoint." *Short-form bundle* — a thread on why sovereign-by-default and what it costs to start.
 
@@ -87,7 +88,7 @@ Three **cross-cutting tracks** run alongside the phases — see the bottom of th
 
 ## Phase 2 — Gold sets v0.1
 
-**Status:** planned.
+**Status:** in progress (started 2026-07-11; rebaselined 2026-07-18). The Argilla choice, seed schema, curation CLI, five lane directories, and GCP annotation workspace are implemented. Only 10 candidate seeds exist, no reviewed `annotated.jsonl` exists, and `v0.1` has not been released.
 
 **Goal:** Five lane-organized, versioned, *private* gold sets exist; the curation workflow is documented and repeatable; provenance is tracked per example.
 
@@ -100,10 +101,10 @@ Three **cross-cutting tracks** run alongside the phases — see the bottom of th
 
 **Experiments:**
 
-- `0005-eval-curation-workflow` — stand up the seed → expand → filter → annotate → review pipeline.
-- `0006-eval-annotation-tooling` — argilla vs label-studio bake-off on a small lane; pick one.
-- `0007-eval-versioning-schema` — gold-set versioning, contamination tagging, public/private split.
-- `0008-eval-gold-set-v0.1` — first ~250–400 examples across 5 lanes; lane owners identified.
+- `eval-curation-workflow` — stand up the seed → expand → filter → annotate → review pipeline.
+- `eval-annotation-tooling` — validate the selected Argilla v2 workflow on a small lane; document setup and operator friction.
+- `eval-versioning-schema` — gold-set versioning, contamination tagging, public/private split.
+- `eval-gold-set-v0.1` — first ~250–400 examples across 5 lanes; lane owners identified.
 
 **Documentation milestone:** *Writeup* — "Gold sets as the moat: a private-eval curation workflow for the contamination era." *Short-form bundle* — what makes a gold-set example good; provenance-first principles.
 
@@ -111,7 +112,7 @@ Three **cross-cutting tracks** run alongside the phases — see the bottom of th
 
 ## Phase 3 — Sovereign judge stack
 
-**Status:** planned.
+**Status:** in progress (started 2026-07-11; rebaselined 2026-07-18). Rubric routing, judge persistence, a Qwen 2.5 72B manifest, and an uncalibrated v0.2 bundle exist in code. No live sovereign-judge campaign, specialist bake-off, human calibration set, kappa gate, or bias stress result exists yet.
 
 **Goal:** A judge stack that runs entirely on sovereign compute, is human-calibrated to Cohen's κ ≥ 0.8 on its assigned tasks, and has documented bias profiles.
 
@@ -124,10 +125,10 @@ Three **cross-cutting tracks** run alongside the phases — see the bottom of th
 
 **Experiments:**
 
-- `0009-eval-specialist-judge-bake-off` — Prometheus 2 vs Atla Selene on representative tasks.
-- `0010-eval-generalist-judge-bake-off` — Qwen 2.5 72B Instruct vs Llama 3.3 70B Instruct.
-- `0011-eval-human-calibration-set` — build the 100–200 examples, double-annotate, measure agreement.
-- `0012-eval-judge-bias-stress` — position / length / discrimination tests; document thresholds.
+- `eval-specialist-judge-bake-off` — Prometheus 2 vs Atla Selene on representative tasks.
+- `eval-generalist-judge-bake-off` — Qwen 2.5 72B Instruct vs Llama 3.3 70B Instruct.
+- `eval-human-calibration-set` — build the 100–200 examples, double-annotate, measure agreement.
+- `eval-judge-bias-stress` — position / length / discrimination tests; document thresholds.
 
 **Documentation milestone:** *Writeup* — "Calibrating a sovereign LLM-as-judge stack: methods, biases, what we trust." *Short-form bundle* — case studies of where judges fail.
 
@@ -148,10 +149,10 @@ Three **cross-cutting tracks** run alongside the phases — see the bottom of th
 
 **Experiments:**
 
-- `0013-rag-sea-lion-sea-helm` — SEA lane deepening.
-- `0014-inference-japanese-swallow-llm-jp-eval` — Japanese lane deepening.
-- `0015-rag-ocr-vlm-multi-baseline` — OCR / VLM lane deepening.
-- `0016-eval-finance-multi-benchmark` — finance lane deepening.
+- `rag-sea-lion-sea-helm` — SEA lane deepening.
+- `inference-japanese-swallow-llm-jp-eval` — Japanese lane deepening.
+- `rag-ocr-vlm-multi-baseline` — OCR / VLM lane deepening.
+- `eval-finance-multi-benchmark` — finance lane deepening.
 
 **Documentation milestone:** *Writeups* — one technical post per lane (4 total) + a cross-lane comparison post. *Short-form bundle* — surprising findings per lane.
 
@@ -173,10 +174,10 @@ Three **cross-cutting tracks** run alongside the phases — see the bottom of th
 
 **Experiments:**
 
-- `0017-memory-langgraph-checkpointer` — LangGraph + Postgres checkpointer + model-manifest schema.
-- `0018-memory-adapter-interface` — `shared/memory/` interface definition + test harness.
-- `0019-memory-backend-bake-off` — A vs C on JFinQA-with-contradiction.
-- `0020-memory-governance-layer` — adapter-level governance + threat model entries.
+- `memory-langgraph-checkpointer` — LangGraph + Postgres checkpointer + model-manifest schema.
+- `memory-adapter-interface` — `shared/memory/` interface definition + test harness.
+- `memory-backend-bake-off` — A vs C on JFinQA-with-contradiction.
+- `memory-governance-layer` — adapter-level governance + threat model entries.
 
 **Documentation milestone:** *Writeup* — "Postgres + AGE + pgvector vs Neo4j as long-term agent memory: a bake-off." *Short-form bundle* — what makes a graph DB worth the operational cost.
 
@@ -198,10 +199,10 @@ Three **cross-cutting tracks** run alongside the phases — see the bottom of th
 
 **Experiments:**
 
-- `0021-eval-end-to-end-onboarding` — proves the one-hour acceptance criterion end-to-end.
-- `0022-eval-leaderboard-dashboard` — read-only public view on the Postgres run-store.
-- `0023-eval-internal-metrics-dashboard` — judge agreement, latencies, costs over time.
-- `0024-eval-regression-alerts` — automated baseline regression with alerts.
+- `eval-end-to-end-onboarding` — proves the one-hour acceptance criterion end-to-end.
+- `eval-leaderboard-dashboard` — read-only public view on the Postgres run-store.
+- `eval-internal-metrics-dashboard` — judge agreement, latencies, costs over time.
+- `eval-regression-alerts` — automated baseline regression with alerts.
 
 **Documentation milestone:** *Writeup* — "Sovereign Eval Lab v1: what it does, what it costs, how it ranks the open models of 2026." *Short-form bundle* — the leaderboard launch thread; selected surprises; cross-lane comparisons. *Headline artifact:* the public leaderboard itself.
 
@@ -221,9 +222,9 @@ Three **cross-cutting tracks** run alongside the phases — see the bottom of th
 
 **Experiments:**
 
-- `0025-agents-document-analyst-mvp` — minimum viable end-to-end flow.
-- `0026-agents-document-analyst-grounding` — citation faithfulness, evidence checks.
-- `0027-eval-application-gold-set` — extends Phase-4 lanes with end-to-end application scenarios.
+- `agents-document-analyst-mvp` — minimum viable end-to-end flow.
+- `agents-document-analyst-grounding` — citation faithfulness, evidence checks.
+- `eval-application-gold-set` — extends Phase-4 lanes with end-to-end application scenarios.
 
 **Documentation milestone:** *Writeup* — "Building a multilingual document analyst on a sovereign stack." *Short-form bundle* — annotated demos with screen recordings.
 
@@ -247,8 +248,8 @@ Three **cross-cutting tracks** run alongside the phases — see the bottom of th
 
 **Experiments:**
 
-- `0028-eval-tier2-integration` — Fireworks / Together / Groq behind the inference contract.
-- `0029-eval-sovereign-vs-tier2-cost` — the actual benchmark + report.
+- `eval-tier2-integration` — Fireworks / Together / Groq behind the inference contract.
+- `eval-sovereign-vs-tier2-cost` — the actual benchmark + report.
 
 **Documentation milestone:** *Writeup* — "What sovereign actually costs (and when Fireworks wins)." *Short-form bundle* — the headline numbers with reproducibility receipts.
 
@@ -264,7 +265,7 @@ Three **cross-cutting tracks** run alongside the phases — see the bottom of th
 
 **Experiments:**
 
-- `0030-agents-educational-tutor` — Primary-4 tutor with MOE-style guardrails.
+- `agents-educational-tutor` — Primary-4 tutor with MOE-style guardrails.
 - _… other applications as they justify themselves._
 
 **Documentation milestone:** One short writeup per application + a short-form post.
@@ -322,8 +323,7 @@ Plus **recurring cadence** layered on top:
 - Blessed **sovereign runtime** on the Spark: NIM vs. TensorRT-LLM vs. vLLM as the *default* (not just the challenger)?
 - **Sovereign judge models**: specialist — Prometheus 2 (8×7B) vs. Atla Selene? Generalist — Qwen 2.5 72B Instruct vs. Llama 3.3 70B Instruct? Phase-3 bake-offs decide; quarterly review thereafter.
 - **External recalibration**: do we use *any* closed-API judge at all for periodic sanity checks (only on public gold-set subsets), or is the sovereignty cleaner if we exclude them fully? Working bias: exclude unless drift actually shows up.
-- **Gold-set annotation tooling**: argilla vs label-studio vs hand-rolled — decided in Phase 2 by the first-lane curation workflow.
-- **Default on-demand sovereign target** (GCE A3 / AWS P5 / Runpod / Lambda): which region + which provider for the best spot economics in Singapore?
+- **Default GCP burst configuration**: which machine type, GCP region/zone, and Spot VM policy give the best economics while meeting Singapore residency and availability constraints?
 - **Memory backend bake-off** (Phase 5): A (Postgres + AGE + pgvector) vs C (Neo4j 5.x).
 - **LangGraph `Store`** adoption: as-is vs wrapped behind our adapter?
 - **Mac mini headroom**: enough as both control plane *and* small-model baseline + dashboard host, or split?

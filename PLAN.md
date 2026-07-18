@@ -2,12 +2,13 @@
 
 Live calendar / execution doc. `ROADMAP.md` is the strategy reference (what & why); this is the tactical layer (when, in what order, at what depth per week). Edit freely as reality diverges from the plan — that's what living planning docs are for.
 
-**Version:** v1.1 — drafted 2026-05-14, revised 2026-05-26 (absorbed a one-week slip; see Revision log)
+**Version:** v1.2 — drafted 2026-05-14, revised 2026-07-18 (operational recovery; calendar converted to historical baseline plus dependency gates)
 **Start date:** Monday 2026-05-25 (was 2026-05-18 — slipped one week)
 **Coverage:** ~24 weeks, through end of Phase 8 (target first week of November 2026); Phase 9+ open-ended.
 
 ## Revision log
 
+- **2026-07-18 — operational rebaseline (v1.1 → v1.2).** Sprint 2 produced substantial code scaffolding for GCP inference, the sovereign judge, and Argilla, but did not produce live cloud campaigns or annotated gold-set volume. The 2026-07-06 → 2026-07-26 Sprint 3 window is no longer a credible Phase 2 release date. The original calendar remains below as historical intent; current execution follows the recovery gates in `docs/superpowers/specs/2026-07-17-operational-recovery-design.md`: repository recovery → safe cloud smoke → reviewed general-lane slice → remaining lanes → calibration.
 - **2026-05-26 — one-week slip absorbed (v1 → v1.1).** Week 1's substrate/curation work (the May 18–24 block) didn't happen, so the entire calendar shifts +1 week: new start **Mon 2026-05-25**, end-of-Phase-8 target moves from end-October to **~first week of November 2026**. **The DGX Spark order was placed on the original schedule (week of 2026-05-18), ETA ~Jun 15 — it does _not_ shift.** Useful side effect: with everything else +1 week, the Spark now lands right at the **start** of S2 (Mon 2026-06-15) instead of mid-sprint, de-risking the bring-up.
 
 ## Inputs & assumptions
@@ -32,6 +33,16 @@ The plan deliberately parallelizes **Spark-independent** work into Sprint 1 so t
 ## Sprint plan (24 weeks)
 
 Dates are **targets**, not deadlines. Slippage is expected; the slip rules below explain how we respond.
+
+> **Rebaseline note (2026-07-18):** The table below is the original scheduling baseline, not the current forecast. Do not infer completion from elapsed dates. Current work advances only when the following gates pass.
+
+| Recovery gate | Status on 2026-07-18 | Exit condition |
+|---|---|---|
+| Repository recovery | in progress | full pytest and Ruff clean; current planning state committed; Mac smoke and replay preserved |
+| Safe cloud lifecycle | planned | private-tunnel L4 and A100 smoke runs recorded; automatic Terraform teardown proven; final GCP inventory empty |
+| General-lane curation slice | planned | 10 submitted and independently reviewed examples, including at least 2 rubric examples, exported and test-loaded |
+| Gold-set v0.1 | blocked on curation | all 5 lanes meet targets and quality gates; immutable version tagged |
+| Judge calibration | blocked on reviewed rubrics | specialist/generalist calibration set double-annotated; kappa and bias gates pass |
 
 | Sprint | Calendar window | Phases active | Headline outputs |
 |---|---|---|---|
@@ -113,14 +124,14 @@ End of Sprint 1 targets: inference-contract spec + code committed; Mac-mini eval
 ## Open items (decide soon)
 
 - [x] **Spark order placed (week of 2026-05-18)** — on the original schedule; ETA ~Jun 15. Chase the vendor if no shipping update by week 3 (week of 2026-06-08).
-- [ ] **Annotation tool** — argilla vs label-studio decided by end of week 2.
+- [x] **Annotation tool decided (2026-07-11): Argilla v2.** The self-hosted workflow and CLI are implemented; live annotation remains part of the recovery gates.
 - [ ] **Singapore public holidays / known blocked weeks** in the next 6 months — please add to the table below as you spot them so the calendar can absorb them upfront. Vesak Day, Hari Raya Haji, National Day (Aug 9), Deepavali are the obvious ones for 2026.
 - [x] **Publication pattern decided (2026-05-14):** **Substack canonical + HubSpot (SG Code Campus) excerpt-and-link.** Substack subscribers receive the full article (preserves the newsletter / Notes / recommendations mechanic); HubSpot publishes a ~3-paragraph excerpt + "Read the full deep dive on `<Substack>`" pointing back, with a short bio tying the author to SG Code Campus. The repo `docs/writeups/` stays the markdown source of truth; the Substack URL is recorded in each draft's front-matter once published.
 - [x] **Substack name decided (2026-05-15): "Workings"** — from the educator's "show your workings" phrase. Broad, durable, single word, distinctive.
 - [ ] **Reserve `workings.substack.com` this week** before publishing anything. Fallback URL slugs if taken (the *publication name* stays "Workings" regardless): `theworkings`, `workings-notes`, `workings-by-jonathan`, `workingsweekly`. Substack lets you change the URL slug later if you take a custom domain (e.g., `workings.jonathandoh.com`) on the paid tier.
 - [x] **Substack subtitle decided (2026-05-15):** *"Working through AI, education, and the craft of figuring things out — in public."* About page + welcome-post drafts ready at [`docs/social/substack-setup.md`](docs/social/substack-setup.md) — paste verbatim when reserving.
 - [ ] **Dashboard stack** for Phase 6 — Grafana on Postgres vs custom Next.js. Decided no later than Sprint 4 (we want to start instrumenting toward it earlier).
-- [ ] **Cloud burst provider** — which of GCE A3 / AWS P5 / Runpod / Lambda is the default on-demand target? Decided by Sprint 3 (when first heavy-compute eval is queued).
+- [x] **Cloud burst provider decided (2026-07-11): GCP.** L4 inference and A100 judge workspaces are scaffolded in `infra/gcp/`; live smoke validation and teardown remain open.
 
 ### Known unavailability
 
