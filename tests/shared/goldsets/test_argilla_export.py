@@ -2,9 +2,7 @@
 from __future__ import annotations
 
 import json
-import pytest
 from datetime import datetime, timezone
-from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 
@@ -64,7 +62,7 @@ def test_export_exact_type(tmp_path):
         n = export_lane("general", out_file, "http://localhost:6900", "key", seed_path=seed_file)
 
     assert n == 1
-    rows = [json.loads(l) for l in out_file.read_text().strip().splitlines()]
+    rows = [json.loads(line) for line in out_file.read_text().strip().splitlines()]
     assert len(rows) == 1
     assert rows[0]["expected"] == {"type": "exact", "value": "Paris"}
     assert rows[0]["inputs"] == {"question": "What is the capital of France?"}
@@ -96,7 +94,7 @@ def test_export_skips_pending_records(tmp_path):
         n = export_lane("general", out_file, "http://localhost:6900", "key", seed_path=seed_file)
 
     assert n == 1  # only the submitted record exported
-    rows = [json.loads(l) for l in out_file.read_text().strip().splitlines()]
+    rows = [json.loads(line) for line in out_file.read_text().strip().splitlines()]
     assert len(rows) == 1
     assert rows[0]["example_id"] == "ex_general_001"
 

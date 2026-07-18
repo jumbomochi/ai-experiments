@@ -6,9 +6,8 @@ import sys
 from pathlib import Path
 
 import argilla as rg
-from pydantic import ValidationError
 
-from shared.goldsets.schema import GoldExample, SeedExample
+from shared.goldsets.schema import SeedExample
 
 
 def _build_expected_from_answers(answers: dict) -> dict:
