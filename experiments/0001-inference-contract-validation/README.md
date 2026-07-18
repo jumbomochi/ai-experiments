@@ -114,3 +114,21 @@ spec §1.
 **Next experiment:** none until Sprint 2 (Spark bring-up) — at which point experiment
 `0002-inference-blessed-sovereign-runtime/` picks NIM vs TRT-LLM vs vLLM as the default
 sovereign runtime on Spark.
+
+## Current-schema verification — 2026-07-18
+
+Migration 002's development-data truncation removed the May run documented above. A fresh
+live Mac campaign against the current schema produced this preserved replacement:
+
+```
+run_id=7db55c49-5633-4aa2-8744-7d4e5ef8c340 status=completed cost=$0.000005 scored=3 errored=0
+```
+
+The current-schema replay query returned:
+
+```
+  status   |       model_id        | gold_set_version | judge_config_version | n_examples_scored | results | judgements | prompts_preserved | manifest_preserved
+-----------+-----------------------+------------------+----------------------+-------------------+---------+------------+-------------------+--------------------
+ completed | qwen2.5:0.5b-instruct | smoke-v0.0       | v0.1                 |                 3 |       3 |          3 | t                 | t
+(1 row)
+```
