@@ -1,14 +1,9 @@
 output "argilla_url" {
-  value       = "http://${google_compute_address.argilla_ip.address}:6900"
-  description = "Argilla UI URL. Use with `make push` and `make export`."
+  value       = "http://127.0.0.1:6900"
+  description = "Argilla URL through `make tunnel`."
 }
 
 output "instance_name" {
   value       = google_compute_instance.argilla.name
-  description = "GCE instance name (used by SSH)"
-}
-
-output "project_id" {
-  value       = var.project_id
-  description = "GCP project ID (used by make backup to derive GCS bucket name)"
+  description = "GCE instance name used by SSH and the tunnel."
 }

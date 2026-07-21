@@ -1,17 +1,19 @@
 ZONE ?= asia-southeast1-b
-BUCKET ?= $(shell terraform output -raw project_id 2>/dev/null)-ai-experiments-model-cache
 
-.PHONY: up down backup
+.PHONY: up down tunnel health ssh
 
 up:
-	terraform apply -auto-approve
+	terraform apply -auto-approve -input=false
 
 down:
-	terraform destroy -auto-approve
+	terraform destroy -auto-approve -input=false
 
-backup:
-	@echo "Snapshotting argilla Postgres to GCS..."
-	gcloud compute ssh "$$(terraform output -raw instance_name)" --zone $(ZONE) -- \
-	  "docker exec argilla-postgres-1 pg_dump -U argilla argilla | gzip" \
-	  | gsutil cp - "gs://$(BUCKET)/argilla-backups/backup-$$(date +%Y%m%d-%H%M%S).sql.gz"
-	@echo "Backup complete."
+tunnel:
+	gcloud compute ssh "$$(terraform output -raw instance_name)" --zone $(ZONE) -- -N -L 6900:127.0.0.1:6900
+
+health:
+	@until curl -sf http://127.0.0.1:6900/api/v1/status >/dev/null; do sleep 5; done
+	@echo "Ready: http://127.0.0.1:6900"
+
+ssh:
+	gcloud compute ssh "$$(terraform output -raw instance_name)" --zone $(ZONE)

@@ -1,5 +1,5 @@
 # A100 cloud-burst judge target.
-# endpoint: fill from `cd infra/gcp/judge && terraform output -raw judge_endpoint_url`
+# endpoint: open with `cd infra/gcp/judge && make judge-tunnel`
 
 id: "Qwen/Qwen2.5-72B-Instruct-AWQ"
 family: qwen2.5
@@ -9,7 +9,7 @@ quantization: awq
 runtime: vllm
 runtime_version: "0.4.3"
 target_host: cloud-burst-a2
-endpoint: "http://PLACEHOLDER:8000/v1"
+endpoint: "http://127.0.0.1:8001/v1"
 capabilities: [chat]
 context_window: 4096
 default_sampling:

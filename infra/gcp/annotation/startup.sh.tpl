@@ -57,7 +57,7 @@ until curl -sf http://localhost:6900/api/v1/status >/dev/null 2>&1; do
   sleep 5
   WAITED=$((WAITED + 5))
   if [ "$WAITED" -ge "$MAX_WAIT" ]; then
-    echo "[startup] ERROR: argilla did not start after ${MAX_WAIT}s"
+    echo "[startup] ERROR: argilla did not start after $${MAX_WAIT}s"
     docker compose logs 2>&1 | tail -30
     exit 1
   fi

@@ -1,5 +1,5 @@
 # GCE L4 cloud-burst target.
-# endpoint: fill in the static IP from `cd infra/gcp && terraform output -raw endpoint_url`
+# endpoint: open with `cd infra/gcp && make tunnel`
 
 id: "Qwen/Qwen2.5-7B-Instruct"
 family: qwen2.5
@@ -9,7 +9,7 @@ quantization: null
 runtime: vllm
 runtime_version: "0.4.3"
 target_host: cloud-burst-l4
-endpoint: "http://PLACEHOLDER:8000/v1"
+endpoint: "http://127.0.0.1:8000/v1"
 capabilities: [chat]
 context_window: 131072
 default_sampling:

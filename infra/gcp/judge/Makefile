@@ -1,18 +1,19 @@
 ZONE ?= asia-southeast1-b
 
-.PHONY: judge-up judge-down judge-health judge-ssh
+.PHONY: judge-up judge-down judge-tunnel judge-health judge-ssh
 
 judge-up:
-	terraform apply -auto-approve
+	terraform apply -auto-approve -input=false
 
 judge-down:
-	terraform destroy -auto-approve
+	terraform destroy -auto-approve -input=false
+
+judge-tunnel:
+	gcloud compute ssh "$$(terraform output -raw instance_name)" --zone $(ZONE) -- -N -L 8001:127.0.0.1:8000
 
 judge-health:
-	@echo "Waiting for judge endpoint to become ready..."
-	@BASE="$$(terraform output -raw judge_endpoint_url | sed 's|/v1$$||')"; \
-	until curl -sf "$$BASE/health" >/dev/null; do sleep 5; done
-	@echo "Ready: $$(terraform output -raw judge_endpoint_url)"
+	@until curl -sf http://127.0.0.1:8001/health >/dev/null; do sleep 5; done
+	@echo "Ready: http://127.0.0.1:8001/v1"
 
 judge-ssh:
 	gcloud compute ssh "$$(terraform output -raw instance_name)" --zone $(ZONE)
