@@ -27,7 +27,7 @@ resource "google_compute_instance" "judge" {
 
   boot_disk {
     initialize_params {
-      image = "deeplearning-platform-release/common-dl-gpu-debian-11-py310"
+      image = "deeplearning-platform-release/common-cu129-ubuntu-2204-nvidia-580"
       size  = 200 # GB; 72B AWQ weights (~36 GB) + Docker layers
       type  = "pd-ssd"
     }

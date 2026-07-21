@@ -29,7 +29,7 @@ resource "google_compute_instance" "vllm" {
   boot_disk {
     initialize_params {
       # Deep Learning VM: CUDA drivers + Docker pre-installed.
-      image = "deeplearning-platform-release/common-dl-gpu-debian-11-py310"
+      image = "deeplearning-platform-release/common-cu129-ubuntu-2204-nvidia-580"
       size  = 100 # GB; model weights + Docker layers
       type  = "pd-ssd"
     }
