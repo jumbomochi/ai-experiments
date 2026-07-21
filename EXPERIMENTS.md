@@ -7,6 +7,7 @@ Only experiments with an actual `experiments/NNNN-<area>-<slug>/` folder receive
 | ID | Area | Title | Status | Started | Result (one line) |
 |------|------------|------------------------------|----------|------------|-------------------|
 | 0001 | inference | inference-contract-validation | done | 2026-05-27 | Mac substrate validated in May; current-schema rerun and replay evidence tracked by the July recovery |
+| 0002 | eval | cloud-lifecycle | running | 2026-07-18 | private-tunnel L4 and A100 judge smoke; awaiting live evidence and zero-resource final inventory |
 
 **Status values:** `planned` · `running` · `done` · `parked` · `abandoned`
 
