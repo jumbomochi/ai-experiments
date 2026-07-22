@@ -399,9 +399,12 @@ Create `gs://${PROJECT_ID}-tfstate` in `asia-southeast1` with uniform bucket acc
 
 ```bash
 gcloud auth application-default login \
-  --impersonate-service-account="terraform-ai-experiments@${PROJECT_ID}.iam.gserviceaccount.com"
-gcloud auth application-default set-quota-project "${PROJECT_ID}"
-gcloud auth application-default print-access-token >/dev/null
+  --impersonate-service-account="terraform-ai-experiments@${PROJECT_ID}.iam.gserviceaccount.com" \
+  --configuration=ai-experiments
+gcloud auth application-default set-quota-project "${PROJECT_ID}" \
+  --configuration=ai-experiments
+gcloud auth application-default print-access-token \
+  --configuration=ai-experiments >/dev/null
 ```
 
 Verify the ADC JSON contains the exact service-account impersonation URL without printing tokens or source credentials. Then create `infra/gcp/project.env` with the actual project values and run the Task 1 guard.
@@ -459,7 +462,7 @@ Expected: `target verified: PROJECT_ID`.
 
 - [ ] **Step 6: Remove stale ignored Adept runtime files only after the empty-state check**
 
-Confirm each local state has zero resources:
+For each workspace, first test whether `terraform.tfstate` exists. If it does, confirm it has zero resources with the matching command below. If it does not exist, record `no local state file` and continue; a missing state is empty and must not fail bootstrap.
 
 ```bash
 terraform -chdir=infra/gcp show -json | jq '.values.root_module.resources // [] | length'
@@ -467,7 +470,7 @@ terraform -chdir=infra/gcp/judge show -json | jq '.values.root_module.resources 
 terraform -chdir=infra/gcp/annotation show -json | jq '.values.root_module.resources // [] | length'
 ```
 
-Expected: `0` for every state that exists. Then delete only ignored `terraform.tfvars`, `terraform.tfstate`, and `terraform.tfstate.backup` files under these three workspaces. Do not delete tracked lock files or Terraform source.
+Expected: `0` for every state file that exists; missing files are explicitly recorded as empty. Then delete only ignored `terraform.tfvars`, `terraform.tfstate`, and `terraform.tfstate.backup` files under these three workspaces. Do not delete tracked lock files or Terraform source.
 
 - [ ] **Step 7: Record and commit the canonical target**
 
