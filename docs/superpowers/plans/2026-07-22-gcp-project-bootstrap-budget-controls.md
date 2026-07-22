@@ -18,7 +18,7 @@
 - The preferred project ID is `sgcc-ai-experiments`. If unavailable, the sole fallback is `sgcc-ai-experiments-66bdf1`, where `66bdf1` is the stable SHA-256 prefix of `huiliang@sgcodecampus.com:ai-experiments`.
 - If organization/folder selection, billing-account selection, or USD billing currency is ambiguous, stop before creating or linking the project and obtain the user's explicit selection.
 - Project controls are persistent. Never run `terraform destroy` in `infra/gcp/project_controls` during campaign cleanup.
-- `google_billing_budget.deletion_policy` is `PREVENT`. Billing stays enabled at 100%; the function stops running VMs only.
+- `google_billing_budget.project` uses `lifecycle { prevent_destroy = true }`, the deletion guard supported by the locked Google provider 5.45.2. Billing stays enabled at 100%; the function stops running VMs only.
 - Every disposable VM uses an auto-delete boot disk. After every successful or failed live VM task, delete/destroy it and verify instances, disks, reserved addresses, and campaign buckets are empty.
 - Do not resume L4 or A100 work until the synthetic 100% notification has stopped the test VM and the final inventory is empty.
 
@@ -271,7 +271,10 @@ Use `data.google_project.current.number` and create exactly:
 resource "google_billing_budget" "project" {
   billing_account = var.billing_account_id
   display_name    = var.budget_display_name
-  deletion_policy = "PREVENT"
+
+  lifecycle {
+    prevent_destroy = true
+  }
 
   budget_filter {
     projects = ["projects/${data.google_project.current.number}"]
@@ -526,7 +529,7 @@ Use Terraform outputs plus explicit gcloud/API reads to verify:
 - budget amount is USD 100 and numeric-project scope is exact;
 - current-spend thresholds are `0.10`, `0.50`, and `1.00`;
 - project-level recipients and Pub/Sub updates are enabled;
-- deletion policy is `PREVENT`;
+- Terraform configuration retains `lifecycle { prevent_destroy = true }` on the budget and exposes no control-plane destroy target;
 - topic IAM includes only the required billing publisher plus administrative bindings;
 - function is ACTIVE in `asia-southeast1` with the expected runtime identity and environment;
 - runtime custom role contains only get/list/stop and logging writer is separate.
