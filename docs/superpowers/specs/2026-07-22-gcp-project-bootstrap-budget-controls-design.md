@@ -1,7 +1,7 @@
 # GCP Project Bootstrap and Budget Controls Design
 
 **Date:** 2026-07-22
-**Status:** Draft — conversational design approved; written review pending
+**Status:** Approved
 
 ## Context
 
