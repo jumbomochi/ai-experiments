@@ -1,7 +1,7 @@
 # GCP Project Bootstrap and Budget Controls Design
 
 **Date:** 2026-07-22
-**Status:** Approved
+**Status:** Draft amendment — native SGD design conversationally approved; written review pending
 
 ## Context
 
@@ -28,15 +28,16 @@ project-scoped cost controls before any GPU campaign resumes.
   and record the resulting ID as the repository's canonical target.
 - Authentication: user bootstrap followed by keyless service-account impersonation; no
   downloaded service-account keys.
-- Monthly project budget: USD 100.
-- Current-spend alerts: USD 10, USD 50, and USD 100.
-- At or above USD 100: automatically stop running Compute Engine instances in this project.
+- Monthly project budget: SGD 100.
+- Current-spend alerts: SGD 10, SGD 50, and SGD 100.
+- At or above SGD 100: automatically stop running Compute Engine instances in this project.
 - Do not automatically disable billing or delete disks, buckets, or the project.
 - Keep project controls persistent and campaign compute disposable in separate Terraform
   states.
 
-If the selected billing account does not use or accept USD budgets, setup stops before budget
-creation and requests approval for the equivalent amount in the billing account currency.
+The selected self-serve Cloud Billing account uses Singapore as its country and SGD as its fixed
+currency. Setup stops before budget creation if the resulting billing account currency is not
+exactly SGD.
 
 ## Considered Approaches
 
@@ -129,18 +130,18 @@ and is discarded only after another empty-inventory verification.
 ### Project-scoped budget
 
 Terraform creates one `google_billing_budget` scoped to the new project's numeric project ID.
-The specified amount is USD 100 per calendar month. Current-spend threshold rules are:
+The specified amount is SGD 100 per calendar month. Current-spend threshold rules are:
 
-- `0.10` — USD 10;
-- `0.50` — USD 50;
-- `1.00` — USD 100.
+- `0.10` — SGD 10;
+- `0.50` — SGD 50;
+- `1.00` — SGD 100.
 
 Project-level recipients are enabled so project owners receive threshold email. The budget also
 publishes spend updates to a dedicated Pub/Sub topic. Budget deletion protection is enabled so a
 routine Terraform destroy cannot silently remove the cost guardrail.
 
 Cloud Billing budget data is estimated and notifications are not real-time. The budget is a
-safety backstop, not a guarantee that invoiced cost stops at exactly USD 100.
+safety backstop, not a guarantee that invoiced cost stops at exactly SGD 100.
 
 ### Automatic Compute shutdown
 
@@ -182,7 +183,7 @@ Bootstrap stops without creating or mutating cloud resources when:
 - the authenticated account is not exactly `huiliang@sgcodecampus.com`;
 - organization/folder or billing-account selection is ambiguous;
 - the chosen billing account cannot be linked by the authenticated user;
-- the billing account currency cannot implement the approved USD thresholds;
+- the billing account currency is not SGD;
 - the project ID selection is not recorded consistently;
 - impersonation does not resolve to the dedicated Terraform service account;
 - any required API, IAM binding, budget resource, or notification component fails validation.
@@ -213,7 +214,7 @@ Before any GPU workload:
 1. Confirm the canonical gcloud configuration, user, project, organization/folder, and billing
    account.
 2. Confirm Terraform is impersonating `terraform-ai-experiments`.
-3. Confirm the USD 100 project budget and 10%, 50%, and 100% thresholds.
+3. Confirm the SGD 100 project budget and 10%, 50%, and 100% thresholds.
 4. Confirm the Pub/Sub topic and Cloud Run function are healthy.
 5. Create a temporary inexpensive `e2-micro` VM with an auto-delete boot disk.
 6. Publish a synthetic 100% budget notification matching the configured budget and project.
