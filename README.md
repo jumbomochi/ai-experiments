@@ -13,6 +13,7 @@ Started May 2026 with an initial ~3-month run; intended to keep growing.
 | `EXPERIMENTS.md` | Index of every experiment with status and a one-line result. |
 | `docs/planning/` | Planning documents — the source material the roadmap is distilled from. |
 | `docs/notes/` | Cross-cutting notes, decisions, reading. |
+| `docs/runbooks/` | Audited operational procedures and partial-failure recovery instructions. |
 | `docs/writeups/` | Long-form technical articles per phase (drafts → published). |
 | `docs/social/` | Short-form post bundles per phase (LinkedIn · X · Bluesky · Mastodon). |
 | `docs/superpowers/specs/` | Design docs for non-trivial pieces of this repo. |
@@ -49,6 +50,11 @@ The eval substrate is **sovereign compute** — anywhere we control the runtime 
 **Mac Studio** — TBD; not on the critical path.
 
 Run `uv run python scripts/hardware_report.py` on any sovereign target and paste the output into an experiment's *Setup* section so runs stay comparable.
+
+Before creating the dedicated GCP project or configuring keyless Terraform access, follow the
+[audited GCP bootstrap and recovery runbook](docs/runbooks/gcp-ai-experiments-bootstrap.md). It
+fails closed on account, parent, billing, project-ID, and impersonation ambiguity; it does not
+authorize Terraform plan or apply.
 
 ## Environment
 
