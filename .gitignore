@@ -56,3 +56,6 @@ Thumbs.db
 .coverage
 htmlcov/
 .pytest_cache/
+
+# --- Claude Code local settings (machine-specific) ---
+.claude/settings.local.json
