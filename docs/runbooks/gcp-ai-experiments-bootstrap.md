@@ -156,9 +156,14 @@ enabled. Stop on a mismatch.
 Enable only the APIs needed by the committed project controls and campaign workspaces:
 
 ```bash
-gcloud services enable artifactregistry.googleapis.com billingbudgets.googleapis.com cloudbilling.googleapis.com cloudbuild.googleapis.com cloudfunctions.googleapis.com cloudresourcemanager.googleapis.com compute.googleapis.com eventarc.googleapis.com iam.googleapis.com logging.googleapis.com monitoring.googleapis.com pubsub.googleapis.com run.googleapis.com serviceusage.googleapis.com storage.googleapis.com --project="${PROJECT_ID}" --configuration=ai-experiments
+gcloud services enable artifactregistry.googleapis.com billingbudgets.googleapis.com cloudbilling.googleapis.com cloudbuild.googleapis.com cloudfunctions.googleapis.com cloudresourcemanager.googleapis.com compute.googleapis.com eventarc.googleapis.com iam.googleapis.com iamcredentials.googleapis.com logging.googleapis.com monitoring.googleapis.com pubsub.googleapis.com run.googleapis.com serviceusage.googleapis.com storage.googleapis.com --project="${PROJECT_ID}" --configuration=ai-experiments
 gcloud services list --enabled --project="${PROJECT_ID}" --configuration=ai-experiments
+gcloud services describe iam.googleapis.com --project="${PROJECT_ID}" --configuration=ai-experiments
+gcloud services describe iamcredentials.googleapis.com --project="${PROJECT_ID}" --configuration=ai-experiments
 ```
+
+Both service descriptions must report `state: ENABLED`. The Service Account Credentials API is
+required before the later ADC flow can mint short-lived impersonated credentials.
 
 Create the dedicated Terraform service account and allow only the approved user to mint its
 short-lived tokens:
