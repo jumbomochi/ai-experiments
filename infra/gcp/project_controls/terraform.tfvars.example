@@ -1,0 +1,5 @@
+billing_account_id = "000000-000000-000000"
+region             = "asia-southeast1"
+budget_amount_usd  = 100
+budget_display_name = "ai-experiments-monthly"
+function_name       = "budget-stop-compute"
