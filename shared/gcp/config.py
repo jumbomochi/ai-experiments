@@ -28,8 +28,8 @@ _KEY_TO_FIELD = {
     "GCP_STATE_BUCKET": "state_bucket",
 }
 _REQUIRED_ACCOUNT = "huiliang@sgcodecampus.com"
-_FORBIDDEN_CONFIGURATION = "adept"
-_FORBIDDEN_PROJECT = "adept-prod-497323"
+_REQUIRED_CONFIGURATION = "ai-experiments"
+_ALLOWED_PROJECTS = frozenset({"sgcc-ai-experiments", "sgcc-ai-experiments-66bdf1"})
 
 
 @dataclass(frozen=True)
@@ -103,10 +103,13 @@ class ProjectConfig:
     def _reject_unsafe_target(self) -> None:
         if self.gcloud_account != _REQUIRED_ACCOUNT:
             raise TargetMismatchError(f"GCLOUD_ACCOUNT must be {_REQUIRED_ACCOUNT}")
-        if self.gcloud_configuration == _FORBIDDEN_CONFIGURATION:
-            raise TargetMismatchError("Adept gcloud configuration is forbidden")
-        if self.project_id == _FORBIDDEN_PROJECT:
-            raise TargetMismatchError("Adept GCP project is forbidden")
+        if self.gcloud_configuration != _REQUIRED_CONFIGURATION:
+            raise TargetMismatchError(
+                f"gcloud configuration must be {_REQUIRED_CONFIGURATION}"
+            )
+        if self.project_id not in _ALLOWED_PROJECTS:
+            allowed_projects = ", ".join(sorted(_ALLOWED_PROJECTS))
+            raise TargetMismatchError(f"GCP project must be one of: {allowed_projects}")
 
     def _get_gcloud_value(
         self,

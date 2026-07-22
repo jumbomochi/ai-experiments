@@ -180,21 +180,49 @@ def test_verify_gcloud_rejects_target_mismatches(
 
 
 @pytest.mark.parametrize(
-    "overrides",
+    ("overrides", "expected_message"),
     [
-        {"gcloud_configuration": "adept"},
-        {"project_id": "adept-prod-497323"},
+        ({"gcloud_configuration": "adept"}, "configuration"),
+        ({"project_id": "adept-prod-497323"}, "project"),
     ],
 )
 def test_verify_gcloud_rejects_adept_targets_before_calling_gcloud(
     overrides: dict[str, str],
+    expected_message: str,
 ) -> None:
     runner = RecordingRunner([])
 
-    with pytest.raises(TargetMismatchError, match="Adept"):
+    with pytest.raises(TargetMismatchError, match=expected_message):
         _project_config(**overrides).verify_gcloud(runner=runner)
 
     assert runner.calls == []
+
+
+def test_verify_gcloud_rejects_arbitrary_configuration_before_calling_gcloud() -> None:
+    runner = RecordingRunner(["huiliang@sgcodecampus.com\n", "sgcc-ai-experiments\n"])
+
+    with pytest.raises(TargetMismatchError, match="configuration"):
+        _project_config(gcloud_configuration="personal").verify_gcloud(runner=runner)
+
+    assert runner.calls == []
+
+
+def test_verify_gcloud_rejects_arbitrary_project_before_calling_gcloud() -> None:
+    runner = RecordingRunner(["huiliang@sgcodecampus.com\n", "other-company-prod\n"])
+
+    with pytest.raises(TargetMismatchError, match="project"):
+        _project_config(project_id="other-company-prod").verify_gcloud(runner=runner)
+
+    assert runner.calls == []
+
+
+def test_verify_gcloud_accepts_generated_suffix_project() -> None:
+    project_id = "sgcc-ai-experiments-66bdf1"
+    runner = RecordingRunner(["huiliang@sgcodecampus.com\n", f"{project_id}\n"])
+
+    _project_config(project_id=project_id).verify_gcloud(runner=runner)
+
+    assert len(runner.calls) == 2
 
 
 def test_cli_exits_zero_after_verifying_target(
