@@ -14,14 +14,14 @@ variable "region" {
   default     = "asia-southeast1"
 }
 
-variable "budget_amount_usd" {
-  description = "Monthly project budget amount in USD"
+variable "budget_amount_sgd" {
+  description = "Monthly project budget amount in SGD"
   type        = number
   default     = 100
 
   validation {
-    condition     = var.budget_amount_usd > 0
-    error_message = "budget_amount_usd must be greater than zero."
+    condition     = var.budget_amount_sgd > 0
+    error_message = "budget_amount_sgd must be greater than zero."
   }
 }
 

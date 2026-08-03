@@ -187,8 +187,8 @@ resource "google_billing_budget" "project" {
   }
   amount {
     specified_amount {
-      currency_code = "USD"
-      units         = tostring(var.budget_amount_usd)
+      currency_code = "SGD"
+      units         = tostring(var.budget_amount_sgd)
     }
   }
   threshold_rules { threshold_percent = 0.10 }
