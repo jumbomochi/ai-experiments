@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Create the dedicated `AI Experiments` Google Cloud project under `huiliang@sgcodecampus.com`, establish keyless Terraform administration, install a USD 100 monthly budget with USD 10/50/100 alerts and automatic Compute Engine shutdown at 100%, and prove the guardrail before any GPU work resumes.
+**Goal:** Create the dedicated `AI Experiments` Google Cloud project under `huiliang@sgcodecampus.com`, establish keyless Terraform administration, install an SGD 100 monthly budget with SGD 10/50/100 alerts and automatic Compute Engine shutdown at 100%, and prove the guardrail before any GPU work resumes.
 
 **Architecture:** A one-time, account-guarded gcloud bootstrap creates and bills the project, Terraform service account, and versioned remote-state bucket. Impersonated Terraform then owns the persistent project control plane: APIs, least-privilege runtime identities, budget, Pub/Sub topic, and a second-generation Cloud Run function. Existing L4, judge, and annotation workspaces use separate remote-state prefixes and remain disposable.
 
@@ -16,7 +16,7 @@
 - The only allowed bootstrap user is exactly `huiliang@sgcodecampus.com`; after the initial global `configurations list` and `auth list` inventory, every gcloud command uses `--configuration=ai-experiments`, and every project resource command uses an explicit `--project`.
 - Do not create, download, print, or store a service-account key. Terraform uses impersonated Application Default Credentials.
 - The preferred project ID is `sgcc-ai-experiments`. If unavailable, the sole fallback is `sgcc-ai-experiments-66bdf1`, where `66bdf1` is the stable SHA-256 prefix of `huiliang@sgcodecampus.com:ai-experiments`.
-- If organization/folder selection, billing-account selection, or USD billing currency is ambiguous, stop before creating or linking the project and obtain the user's explicit selection.
+- If organization/folder selection, billing-account selection, or SGD billing currency is ambiguous, stop before creating or linking the project and obtain the user's explicit selection.
 - Project controls are persistent. Never run `terraform destroy` in `infra/gcp/project_controls` during campaign cleanup.
 - `google_billing_budget.project` uses `lifecycle { prevent_destroy = true }`, the deletion guard supported by the locked Google provider 5.45.2. Billing stays enabled at 100%; the function stops running VMs only.
 - Every disposable VM uses an auto-delete boot disk. After every successful or failed live VM task, delete/destroy it and verify instances, disks, reserved addresses, and campaign buckets are empty.
@@ -218,7 +218,7 @@ git commit -m "feat: stop compute on exhausted GCP budget"
 
 - [ ] **Step 2: Declare validated inputs**
 
-Declare `project_id`, `billing_account_id`, `region` (default `asia-southeast1`), `budget_amount_usd` (default `100` and validation `> 0`), `budget_display_name` (default `ai-experiments-monthly`), and `function_name` (default `budget-stop-compute`). The committed example tfvars contains only non-secret preferred values and a syntactically fake billing ID `000000-000000-000000`.
+Declare `project_id`, `billing_account_id`, `region` (default `asia-southeast1`), `budget_amount_sgd` (default `100` and validation `> 0`), `budget_display_name` (default `ai-experiments-monthly`), and `function_name` (default `budget-stop-compute`). The committed example tfvars contains only non-secret preferred values and a syntactically fake billing ID `000000-000000-000000`.
 
 - [ ] **Step 3: Define APIs and least-privilege identities**
 
@@ -281,8 +281,8 @@ resource "google_billing_budget" "project" {
   }
   amount {
     specified_amount {
-      currency_code = "USD"
-      units         = tostring(var.budget_amount_usd)
+      currency_code = "SGD"
+      units         = tostring(var.budget_amount_sgd)
     }
   }
   threshold_rules { threshold_percent = 0.10 }
@@ -358,7 +358,7 @@ Every later command retains the explicit configuration flag. State that executio
 
 - [ ] **Step 2: Document deterministic discovery and selection**
 
-Include exact read-only commands for organizations, folders, open billing accounts, and visible projects. Record the chosen parent as either `--organization=NUMBER`, `--folder=NUMBER`, or no parent only after user confirmation. If more than one open billing account exists, stop for selection. Require the user to verify in the Billing console that the selected billing account accepts USD budgets before linking it.
+Include exact read-only commands for organizations, folders, open billing accounts, and visible projects. Record the chosen parent as either `--organization=NUMBER`, `--folder=NUMBER`, or no parent only after user confirmation. If more than one open billing account exists, stop for selection. Require the user to verify in the Billing console that the selected billing account uses SGD before linking it.
 
 Probe `sgcc-ai-experiments`; if unavailable, use only `sgcc-ai-experiments-66bdf1`. Record `PROJECT_ID`, `PARENT_FLAG`, and `BILLING_ACCOUNT_ID` in the execution ledger before the create command.
 
@@ -438,7 +438,7 @@ Review the recorded failed applies, empty Terraform state, and final empty inven
 
 - [ ] **Step 2: Authenticate and perform discovery**
 
-Follow Task 4 through account login and discovery. Record command outputs with account numbers and IDs but no access tokens. If the parent, billing account, or USD currency check is ambiguous, stop this task and ask the user; do not proceed by choosing the first result.
+Follow Task 4 through account login and discovery. Record command outputs with account numbers and IDs but no access tokens. If the parent, billing account, or SGD currency check is ambiguous, stop this task and ask the user; do not proceed by choosing the first result.
 
 - [ ] **Step 3: Create and link the project**
 
@@ -526,7 +526,7 @@ On failure, do not destroy the control workspace. Capture the error, inspect sta
 
 Use Terraform outputs plus explicit gcloud/API reads to verify:
 
-- budget amount is USD 100 and numeric-project scope is exact;
+- budget amount is SGD 100 and numeric-project scope is exact;
 - current-spend thresholds are `0.10`, `0.50`, and `1.00`;
 - project-level recipients and Pub/Sub updates are enabled;
 - Terraform configuration retains `lifecycle { prevent_destroy = true }` on the budget and exposes no control-plane destroy target;
@@ -580,7 +580,7 @@ Publish this JSON to the Terraform-output topic using the explicit configuration
   "budgetAmount": 100.0,
   "budgetAmountType": "SPECIFIED_AMOUNT",
   "alertThresholdExceeded": 1.0,
-  "currencyCode": "USD"
+  "currencyCode": "SGD"
 }
 ```
 
@@ -695,7 +695,7 @@ Expected: all tests/lint/validation pass.
 
 - [ ] **Step 4: Run the final live gate**
 
-Verify the canonical target guard, impersonated ADC, linked billing account, protected USD 100 budget, three alert thresholds, healthy topic/function, successful synthetic shutdown receipt, and empty disposable inventory. Verify no user-managed service-account keys exist.
+Verify the canonical target guard, impersonated ADC, linked billing account, protected SGD 100 budget, three alert thresholds, healthy topic/function, successful synthetic shutdown receipt, and empty disposable inventory. Verify no user-managed service-account keys exist.
 
 - [ ] **Step 5: Commit documentation corrections**
 

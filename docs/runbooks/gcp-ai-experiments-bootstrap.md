@@ -71,7 +71,7 @@ Fail closed on parent selection:
 - If no open billing account is visible, stop. If more than one is open, stop for explicit user
   selection. Do not choose the first result.
 - Before linking, require the user to verify in the Google Cloud Billing console that the selected
-  billing account accepts budgets denominated in USD. Stop if it does not or the answer is unclear.
+  billing account uses SGD as its currency. Stop if it does not or the answer is unclear.
 
 Probe the preferred ID first:
 
@@ -98,7 +98,7 @@ Before any create command, add a ledger entry containing all three decisions:
 |---|---|
 | `PROJECT_ID` | `sgcc-ai-experiments` or, only after an unavailable result, `sgcc-ai-experiments-66bdf1` |
 | `PARENT_FLAG` | `--organization=NUMBER`, `--folder=NUMBER`, or explicitly confirmed `no parent` |
-| `BILLING_ACCOUNT_ID` | the explicitly confirmed open account that accepts USD budgets |
+| `BILLING_ACCOUNT_ID` | the explicitly confirmed open account that uses SGD as its currency |
 
 Set local shell values from that reviewed ledger entry:
 
